@@ -6,6 +6,9 @@ using System.Data;
 using System.Diagnostics;
 using System.Data.SqlClient;
 using System.IO.Compression;
+using System.Data.OleDb;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 using Microsoft.Office.Interop.Access;  // COM: Microsoft Access 16.0 Object Library
 
@@ -15,26 +18,34 @@ namespace access_linker
 	{
 		static void Main(string[] args)
 		{
-			switch (args.Length)
+			if (args.Length < 2)
 			{
-				case 1:
-					EncodeFile(args[0]);
+				Console.WriteLine("link  : access-linker.exe link <Target.accdb> <server name> <database name>");
+				Console.WriteLine("dump  : access-linker.exe dump <Target.accdb> <server name> <database name>");
+				Console.WriteLine("encode  : access-linker.exe encode <EMPTY.accdb>");
+				return;
+			}
+
+			string targetFilename = args[1];
+
+			switch (args[0])
+			{
+				case "link":
+					WriteEmptyAccess(targetFilename);
+					LinkAccess(targetFilename, args[2], args[3]);
 					break;
 
-				case 3:
-					string accessFilename = args[0];
-					string serverName = args[1];
-					string databaseName = args[2];
+				case "dump":
+					WriteEmptyAccess(targetFilename);
+					DumpAccess(targetFilename, args[2], args[3]);
+					break;
 
-					WriteEmptyAccess(accessFilename);
-
-					LinkAccess(accessFilename, serverName, databaseName);
+				case "encode":
+					EncodeFile(targetFilename);
 					break;
 
 				default:
-					Console.WriteLine("Usage:");
-					Console.WriteLine("link  : access-linker.exe <Target.accdb> <server name> <database name>");
-					Console.WriteLine("encode: access-linker.exe <EMPTY.accdb>");
+					Console.WriteLine($"Unknow command {args[0]}");
 					break;
 			}
 		}
@@ -82,6 +93,169 @@ namespace access_linker
 			}
 		}
 
+		public static void DumpAccess(string accessFilename, string serverName, string databaseName)
+		{
+			string systemDatabaseFilename = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\Microsoft\Access\System.mdw";
+
+			if (File.Exists(systemDatabaseFilename) == false)
+				throw new ApplicationException($"Microsoft Access System database missing: '{systemDatabaseFilename}'.");
+
+			using (var sourceConnection = new SqlConnection($"Data Source='{serverName}';Initial Catalog='{databaseName}';Integrated Security=True;"))
+			{
+				DataSet schema = GetInformationSchemas(sourceConnection);
+
+				using (var targetConnection = new OleDbConnection(
+					$"Provider='Microsoft.ACE.OLEDB.16.0';Data Source='{accessFilename}';User ID='Admin';Password='';Jet OLEDB:System Database='{systemDatabaseFilename}'"))
+				{
+					foreach (string tableName in CreateAccessTables(schema, targetConnection))
+					{
+						DataTable table = ExecuteFill(sourceConnection, $"SELECT * FROM [{tableName}]").Tables[0];
+						table.TableName = tableName;
+
+						Console.WriteLine($"{table.TableName} {table.Rows.Count}");
+
+						AccessBulkInsert(targetConnection, table);
+					}
+				}
+			}
+		}
+
+		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
+		{
+			Regex whiteSpace = new Regex(@"\s+");
+
+			using (TempDirectory TempDir = new TempDirectory())
+			{
+				string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
+				string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
+
+				File.WriteAllLines(iniFilename, new string[] {
+					$"[{Path.GetFileName(csvFilename)}]",
+					"Format=TabDelimited",
+					"CharacterSet=65001",
+					"HDR=YES",
+				});
+
+				using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
+				{
+					foreach (DataColumn column in table.Columns)
+					{
+						if (column.Ordinal > 0)
+							writer.Write('\t');
+
+						writer.Write(column.ColumnName);
+					}
+					writer.WriteLine();
+
+					foreach (DataRow row in table.Rows)
+					{
+						foreach (DataColumn column in table.Columns)
+						{
+							if (column.Ordinal > 0)
+								writer.Write('\t');
+
+							if (row.IsNull(column) == false)
+							{
+								string value = Convert.ToString(row[column]);
+								value = whiteSpace.Replace(value, " ");
+								value = value.Replace("\"", "\"\"");
+
+								if (column.DataType.Name == "String")
+									writer.Write('\"');
+
+								writer.Write(value);
+
+								if (column.DataType.Name == "String")
+									writer.Write('\"');
+							}
+						}
+						writer.WriteLine();
+					}
+				}
+				string commandText = $"INSERT INTO [{table.TableName}] SELECT * FROM [Text;CharacterSet=65001;Database={Path.GetDirectoryName(csvFilename)}].[{Path.GetFileName(csvFilename)}]";
+
+				Console.WriteLine(commandText);
+
+				ExecuteNonQuery(connection, commandText);
+			}
+		}
+
+		public static string[] CreateAccessTables(DataSet schema, OleDbConnection connection)
+		{
+			List<string> ignoreTableNames = new List<string>(new string[] {
+				"sysdiagrams",
+			});
+
+			List<string> tableNames = new List<string>();
+
+			foreach (DataRow tableRow in schema.Tables["TABLES"].Rows)
+			{
+				var TABLE_NAME = (string)tableRow["TABLE_NAME"];
+
+				if (ignoreTableNames.Contains(TABLE_NAME) == true)
+					continue;
+
+				tableNames.Add(TABLE_NAME);
+
+				List<string> columnDefs = new List<string>();
+
+				foreach (DataRow columnRow in schema.Tables["COLUMNS"].Select($"TABLE_NAME = '{TABLE_NAME}'", "ORDINAL_POSITION"))
+				{
+					var COLUMN_NAME = (string)columnRow["COLUMN_NAME"];
+					var IS_NULLABLE = (string)columnRow["IS_NULLABLE"];
+					var DATA_TYPE = (string)columnRow["DATA_TYPE"];
+					int CHARACTER_MAXIMUM_LENGTH = columnRow.IsNull("CHARACTER_MAXIMUM_LENGTH") == true ? 0 : (int)columnRow["CHARACTER_MAXIMUM_LENGTH"];
+
+					string dataType;
+
+					switch (DATA_TYPE)
+					{
+						case "varchar":
+						case "nvarchar":
+							dataType = "VARCHAR";
+							if (CHARACTER_MAXIMUM_LENGTH == -1 || CHARACTER_MAXIMUM_LENGTH > 255)
+								dataType = "LONGTEXT";
+							break;
+
+						case "bigint":
+							dataType = "BIGINT";
+							break;
+
+						default:
+							throw new ApplicationException($"Unknown datatype {DATA_TYPE}");
+
+					}
+
+					string nullable = IS_NULLABLE == "YES" ? "NULL" : "NOT NULL";
+
+					columnDefs.Add($"[{COLUMN_NAME}] {dataType} {nullable}");
+				}
+
+				string CONSTRAINT_NAME = schema.Tables["TABLE_CONSTRAINTS"]
+					.Select($"TABLE_NAME = '{TABLE_NAME}' AND CONSTRAINT_TYPE = 'PRIMARY KEY'")
+					.Select(row => (string)row["CONSTRAINT_NAME"])
+					.Single();
+
+				string[] keyColumnNames = schema.Tables["KEY_COLUMN_USAGE"]
+					.Select($"TABLE_NAME = '{TABLE_NAME}' AND CONSTRAINT_NAME = '{CONSTRAINT_NAME}'", "ORDINAL_POSITION")
+					.Select(row => (string)row["COLUMN_NAME"])
+					.ToArray();
+
+				if (keyColumnNames.Length == 0)
+					throw new ApplicationException($"Did not find key {CONSTRAINT_NAME}");
+
+				columnDefs.Add($"CONSTRAINT [PrimaryKey] PRIMARY KEY ({String.Join(", ", keyColumnNames)})");
+
+				string commandText = $"CREATE TABLE [{TABLE_NAME}] ({String.Join(", ", columnDefs)})";
+
+				Console.WriteLine(commandText);
+
+				ExecuteNonQuery(connection, commandText);
+			}
+
+			return tableNames.ToArray();
+		}
+
 		public static string[] ListDatabaseTables(string serverName, string databaseName)
 		{
 			string connectionString = $"Data Source='{serverName}';Initial Catalog='{databaseName}';Integrated Security=True;";
@@ -103,28 +277,133 @@ namespace access_linker
 			return result.ToArray();
 		}
 
-		public static DataSet ExecuteFill(SqlConnection connection, string commantText)
+		public static DataSet GetInformationSchemas(SqlConnection connection)
+		{
+			string[] informationSchemaNames = {
+				"CHECK_CONSTRAINTS",
+				"COLUMN_DOMAIN_USAGE",
+				"COLUMN_PRIVILEGES",
+				"COLUMNS",
+				"CONSTRAINT_COLUMN_USAGE",
+				"CONSTRAINT_TABLE_USAGE",
+				"DOMAIN_CONSTRAINTS",
+				"DOMAINS",
+				"KEY_COLUMN_USAGE",
+				"PARAMETERS",
+				"REFERENTIAL_CONSTRAINTS",
+				"ROUTINE_COLUMNS",
+				"ROUTINES",
+				"SCHEMATA",
+				"TABLE_CONSTRAINTS",
+				"TABLE_PRIVILEGES",
+				"TABLES",
+				"VIEW_COLUMN_USAGE",
+				"VIEW_TABLE_USAGE",
+				"VIEWS",
+			};
+
+			DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
+
+			foreach (string name in informationSchemaNames)
+			{
+				using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
+				{
+					DataTable table = new DataTable(name);
+					adapter.Fill(table);
+					dataSet.Tables.Add(table);
+				}
+			}
+
+			return dataSet;
+		}
+
+		public static DataSet ExecuteFill(SqlConnection connection, string commandText)
 		{
 			DataSet dataSet = new DataSet();
 
-			using (SqlDataAdapter adapter = new SqlDataAdapter(commantText, connection))
+			using (SqlDataAdapter adapter = new SqlDataAdapter(commandText, connection))
 				adapter.Fill(dataSet);
 
 			return dataSet;
+		}
+
+		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)
+		{
+			DataSet dataSet = new DataSet();
+
+			using (OleDbDataAdapter adapter = new OleDbDataAdapter(commandText, connection))
+				adapter.Fill(dataSet);
+
+			return dataSet;
+		}
+
+		public static void ExecuteNonQuery(OleDbConnection connection, string commandText)
+		{
+			using (OleDbCommand command = new OleDbCommand(commandText, connection))
+			{
+				connection.Open();
+				try
+				{
+					command.ExecuteNonQuery();
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
+		}
+
+		public class TempDirectory : IDisposable
+		{
+			private readonly string _LockFilePath;
+			private readonly string _Path;
+
+			public TempDirectory()
+			{
+				_LockFilePath = System.IO.Path.GetTempFileName();
+				_Path = _LockFilePath + ".dir";
+
+				Directory.CreateDirectory(this._Path);
+			}
+
+			public void Dispose()
+			{
+				if (Directory.Exists(_Path) == true)
+					Directory.Delete(_Path, true);
+
+				if (_LockFilePath != null)
+					File.Delete(_LockFilePath);
+			}
+
+			public string Path
+			{
+				get
+				{
+					return _Path;
+				}
+			}
+
+			public override string ToString()
+			{
+				return _Path;
+			}
 		}
 
 		public static string TextTable(DataTable table)
 		{
 			StringBuilder result = new StringBuilder();
 
-			foreach (DataColumn column in table.Columns)
+			for (int pass = 0; pass < 2; ++pass)
 			{
-				if (column.Ordinal != 0)
-					result.Append('\t');
+				foreach (DataColumn column in table.Columns)
+				{
+					if (column.Ordinal != 0)
+						result.Append('\t');
 
-				result.Append(column.ColumnName);
+					result.Append(pass == 0 ? column.ColumnName : column.DataType.Name);
+				}
+				result.AppendLine();
 			}
-			result.AppendLine();
 
 			foreach (DataRow row in table.Rows)
 			{
