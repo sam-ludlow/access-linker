@@ -81,7 +81,7 @@ namespace access_linker
 					Console.Write($"{databaseName}.{tableName}");
 
 					application.DoCmd.TransferDatabase(
-						AcDataTransferType.acLink, "ODBC Database", connectionString, AcObjectType.acTable, tableName, tableName, false, false);
+						AcDataTransferType.acLink, "ODBC Database", connectionString, AcObjectType.acTable, $"dbo.{tableName}", tableName, false, false);
 
 					Console.WriteLine();
 				}

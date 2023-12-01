@@ -1,5 +1,9 @@
 # access-linker
-Link Microsoft Access to SQL Server Backend
+Link Microsoft Access to SQL Server Backend.
+
+## Notes
+- If tables do not have a PK you will get a pop up from Access, just click OK. Warning the pop up may end up hidden behind another window and you wouldn't know (apears to hang).
+- You may have problems running & compiling due to problems with office component versions 
 
 ## Usage
 
