@@ -7,12 +7,9 @@ Link Microsoft Access to SQL Server Backend.
 
 ## Usage
 
-- If using trusted SQL connections you can just use the server name for the server paramter.
-- If using connection strings provide them for both SQL & ODBC.
+- If using trusted SQL connections you can use JUST the server name for the server paramter.
+- If using connection strings provide them for both SQL & ODBC (`"Server=MY-SERVER;User Id=myuser;Password=mypassword;"` `"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY-SERVER;UID=myuser;PWD=mypassword;"`).
 - DO NOT provide the database in the connection strings, they will be added.
-
-SQL: `"Server=MY-SERVER;User Id=myuser;Password=mypassword;"`
-ODBC: `"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY-SERVER;UID=myuser;PWD=mypassword;"`
 
 ### Link
 __access-linker.exe link "C:\My Data\LINK.accdb" \<database\> \<sql server\> [odbc server]__
