@@ -20,9 +20,10 @@ namespace access_linker
 		{
 			if (args.Length < 2)
 			{
-				Console.WriteLine("link  : access-linker.exe link <Target.accdb> <server name> <database name>");
-				Console.WriteLine("dump  : access-linker.exe dump <Target.accdb> <server name> <database name>");
-				Console.WriteLine("encode  : access-linker.exe encode <EMPTY.accdb>");
+				Console.WriteLine("link   : access-linker.exe link <target.accdb> <database> <sql> [odbc]");
+				Console.WriteLine("import : access-linker.exe link <target.accdb> <database> <sql> [odbc]");
+				Console.WriteLine("dump   : access-linker.exe dump <Target.accdb> <database> <sql>");
+				Console.WriteLine("encode : access-linker.exe encode <EMPTY.accdb>");
 				return;
 			}
 
@@ -32,7 +33,12 @@ namespace access_linker
 			{
 				case "link":
 					WriteEmptyAccess(targetFilename);
-					LinkAccess(targetFilename, args[2], args[3]);
+					LinkAccess(targetFilename, args, AcDataTransferType.acLink);
+					break;
+
+				case "import":
+					WriteEmptyAccess(targetFilename);
+					LinkAccess(targetFilename, args, AcDataTransferType.acImport);
 					break;
 
 				case "dump":
@@ -50,6 +56,28 @@ namespace access_linker
 			}
 		}
 
+		public static string MakeConnectionStringSQL(string server, string database)
+		{
+			if (server.Contains(";") == false)
+				server = $"Data Source='{server}';Integrated Security=True;TrustServerCertificate=True;";
+
+			if (database != null)
+				server += $"Initial Catalog='{database}';";
+
+			return server;
+		}
+
+		public static string MakeConnectionStringODBC(string server, string database)
+		{
+			if (server.Contains(";") == false)
+				server = $"ODBC;Driver={{ODBC Driver 17 for SQL Server}};SERVER={server};Trusted_Connection=Yes;";
+
+			if (database != null)
+				server += $"DATABASE={database};";
+
+			return server;
+		}
+
 		public static void WriteEmptyAccess(string filename)
 		{
 			using (MemoryStream compressedStream = new MemoryStream(Convert.FromBase64String(EMPTY_accdb_gz_base64)))
@@ -64,12 +92,22 @@ namespace access_linker
 			}
 		}
 
-		public static void LinkAccess(string accessFilename, string serverName, string databaseName)
+		public static void LinkAccess(string accessFilename, string[] args, AcDataTransferType transferType)
 		{
-			string[] tableNames = ListDatabaseTables(serverName, databaseName);
+			string databaseName = args[2];
+			string connectionStringSQL = args[3];
+			string connectionStringODBC = connectionStringSQL;
+			
+			if (args.Length >= 5)
+				connectionStringODBC = args[4];
 
-			string connectionString =
-				$"ODBC;Driver={{ODBC Driver 17 for SQL Server}};SERVER={serverName};DATABASE={databaseName};Trusted_Connection=Yes;";
+			connectionStringSQL = MakeConnectionStringSQL(connectionStringSQL, databaseName);
+			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
+
+			Console.WriteLine($"SQL : {connectionStringSQL}");
+			Console.WriteLine($"ODBC : {connectionStringODBC}");
+
+			string[] tableNames = ListDatabaseTables(connectionStringSQL);
 
 			Application application = new Application();
 			application.OpenCurrentDatabase(accessFilename);
@@ -80,8 +118,7 @@ namespace access_linker
 				{
 					Console.Write($"{databaseName}.{tableName}");
 
-					application.DoCmd.TransferDatabase(
-						AcDataTransferType.acLink, "ODBC Database", connectionString, AcObjectType.acTable, $"dbo.{tableName}", tableName, false, false);
+					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, $"dbo.{tableName}", tableName, false, false);
 
 					Console.WriteLine();
 				}
@@ -93,19 +130,24 @@ namespace access_linker
 			}
 		}
 
-		public static void DumpAccess(string accessFilename, string serverName, string databaseName)
+		public static void DumpAccess(string accessFilename, string databaseName, string serverName)
 		{
 			string systemDatabaseFilename = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\Microsoft\Access\System.mdw";
 
 			if (File.Exists(systemDatabaseFilename) == false)
 				throw new ApplicationException($"Microsoft Access System database missing: '{systemDatabaseFilename}'.");
 
-			using (var sourceConnection = new SqlConnection($"Data Source='{serverName}';Initial Catalog='{databaseName}';Integrated Security=True;"))
+			string connectionStringSQL = MakeConnectionStringSQL(serverName, databaseName);
+			string connectionStringOLEDB = $"Provider='Microsoft.ACE.OLEDB.16.0';Data Source='{accessFilename}';User ID='Admin';Password='';Jet OLEDB:System Database='{systemDatabaseFilename}'";
+
+			Console.WriteLine($"SQL   : {connectionStringSQL}");
+			Console.WriteLine($"OLEDB : {connectionStringOLEDB}");
+
+			using (var sourceConnection = new SqlConnection(connectionStringSQL))
 			{
 				DataSet schema = GetInformationSchemas(sourceConnection);
 
-				using (var targetConnection = new OleDbConnection(
-					$"Provider='Microsoft.ACE.OLEDB.16.0';Data Source='{accessFilename}';User ID='Admin';Password='';Jet OLEDB:System Database='{systemDatabaseFilename}'"))
+				using (var targetConnection = new OleDbConnection(connectionStringOLEDB))
 				{
 					foreach (string tableName in CreateAccessTables(schema, targetConnection))
 					{
@@ -221,6 +263,10 @@ namespace access_linker
 							dataType = "BIGINT";
 							break;
 
+						case "datetime":
+							dataType = "DATETIME";
+							break;
+
 						default:
 							throw new ApplicationException($"Unknown datatype {DATA_TYPE}");
 
@@ -256,10 +302,8 @@ namespace access_linker
 			return tableNames.ToArray();
 		}
 
-		public static string[] ListDatabaseTables(string serverName, string databaseName)
+		public static string[] ListDatabaseTables(string connectionString)
 		{
-			string connectionString = $"Data Source='{serverName}';Initial Catalog='{databaseName}';Integrated Security=True;";
-
 			using (SqlConnection connection = new SqlConnection(connectionString))
 				return ListDatabaseTables(connection);
 		}

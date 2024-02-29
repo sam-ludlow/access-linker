@@ -7,15 +7,27 @@ Link Microsoft Access to SQL Server Backend.
 
 ## Usage
 
+- If using trusted SQL connections you can just use the server name for the server paramter.
+- If using connection strings provide them for both SQL & ODBC.
+- DO NOT provide the database in the connection strings, they will be added.
+
+SQL: `"Server=MY-SERVER;User Id=myuser;Password=mypassword;"`
+ODBC: `"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY-SERVER;UID=myuser;PWD=mypassword;"`
+
 ### Link
-__access-linker.exe link "C:\My Data\LINK.accdb" \<server\> \<database\>__
+__access-linker.exe link "C:\My Data\LINK.accdb" \<database\> \<sql server\> [odbc server]__
 
 Link Access to SQL server using Microsoft Access 16.0 Object Library.
 
-### Dump
-__access-linker.exe dump "C:\My Data\DUMP.accdb" \<server\> \<database\>__
+### Import
+__access-linker.exe import "C:\My Data\LINK.accdb" \<database\> \<sql server\> [odbc server]__
 
-Dump from SQL to Access using OleDb.
+Import from SQL server into Access using Microsoft Access 16.0 Object Library.
+
+### Dump
+__access-linker.exe dump "C:\My Data\DUMP.accdb" \<database\> \<sql server\>__
+
+Dump from SQL to Access using OleDb. This is just lolz you are better off using `import`.
 
 ### Encode
 __access-linker.exe encode "C:\My Data\EMPTY.accdb"__
