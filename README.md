@@ -14,17 +14,17 @@ Link Microsoft Access to SQL Server Backend and other SQL tools.
 ### Link
 `access-linker.exe link <filename.accdb> <database> <sql server> [odbc server]`
 
-Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDatabase acLink).
+Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDatabase acLink). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
 ### Import
 `access-linker.exe import <filename.accdb> <database> <sql server> [odbc server]`
 
-Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport).
+Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
 ### Dump
 `access-linker.exe dump <filename.accdb> <database> <sql server> [oledb access]`
 
-Dump from SQL to Access using OleDb. You are normally better off using `import`.
+Dump from SQL to Access using OleDb. You are normally better off using `import`. You can optionally provide the OleDb connection string to Access.
 
 ### Backup
 `access-linker.exe backup <filename.bak> <database> <sql server>`
