@@ -12,42 +12,42 @@ Link Microsoft Access to SQL Server Backend and other SQL tools.
 ## Usage
 
 ### Link
-__access-linker.exe link \<target.accdb\> \<database\> \<sql server\> [odbc server]__
+`access-linker.exe link <filename.accdb> <database> <sql server> [odbc server]`
 
 Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDatabase acLink).
 
 ### Import
-__access-linker.exe import \<target.accdb\> \<database\> \<sql server\> [odbc server]__
+`access-linker.exe import <filename.accdb> <database> <sql server> [odbc server]`
 
 Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport).
 
 ### Dump
-__access-linker.exe dump dump \<Target.accdb\> \<database\> \<sql server\> [oledb access]__
+`access-linker.exe dump dump <filename.accdb> <database> <sql server> [oledb access]`
 
 Dump from SQL to Access using OleDb. You are normally better off using `import`.
 
 ### Backup
-__access-linker.exe backup \<filename.bak\> \<database\> \<sql server\>__
+`access-linker.exe backup <filename.bak> <database> <sql server>`
 
 Backup SQL database to `.BAK` file (BACKUP DATABASE).
 
 ### Restore
-__access-linker.exe restore \<filename.bak\> \<database\> \<sql server\> [directory]__
+`access-linker.exe restore <filename.bak> <database> <sql server> [directory]`
 
-Restore SQL databae from `.BAK` file (RESTORE DATABASE).
+Restore SQL databae from `.BAK` file (RESTORE DATABASE). You can optionally provide the server data file directory.
 
 ### Rename
-__access-linker.exe rename \<source name\> \<target name\> \<sql server\> [directory]__
+`access-linker.exe rename <source database> <target database> <sql server> [directory]`
 
-Rename SQL database including logical and physical data & log files (`.MDF` & `.LDF`).
+Rename SQL database including logical and physical data & log files (`.MDF` & `.LDF`). You can optionally provide the server data file directory.
 
 ### Schema
-__access-linker.exe schema \<database\> \<sql server\>__
+`access-linker.exe schema <database> <sql server>`
 
 Get database schema (INFORMATION_SCHEMA) will pop up in notepad, tab delimited text.
 
 ### Encode
-__access-linker.exe encode \<filename\>__
+`access-linker.exe encode <filename>`
 
 Encode file into GZ compresses base64 text will pop up in notepad. Used to include an empty MS Access database in the source code.
 
