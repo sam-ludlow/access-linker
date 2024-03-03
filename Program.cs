@@ -11,9 +11,9 @@ namespace access_linker
 				Console.WriteLine("link    : access-linker.exe link <target.accdb> <database> <sql server> [odbc server]");
 				Console.WriteLine("import  : access-linker.exe import <target.accdb> <database> <sql server> [odbc server]");
 				Console.WriteLine("dump    : access-linker.exe dump <Target.accdb> <database> <sql server> [oledb access]");
-				Console.WriteLine("restore : access-linker.exe restore <filename> <database> <sql server> [directory]");
-				Console.WriteLine("rename  : access-linker.exe rename <existing name> <target name> <sql server> [directory]");
-				Console.WriteLine("backup  : access-linker.exe backup <filename> <database> <sql server>");
+				Console.WriteLine("backup  : access-linker.exe backup <filename.bak> <database> <sql server>");
+				Console.WriteLine("restore : access-linker.exe restore <filename.bak> <database> <sql server> [directory]");
+				Console.WriteLine("rename  : access-linker.exe rename <source name> <target name> <sql server> [directory]");
 				Console.WriteLine("schema  : access-linker.exe schema <database> <sql server>");
 				Console.WriteLine("encode  : access-linker.exe encode <EMPTY.accdb>");
 				return;
