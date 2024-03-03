@@ -8,7 +8,7 @@ Link Microsoft Access to SQL Server Backend.
 ## Usage
 
 - If using trusted SQL connections you can use JUST the server name for the server paramter.
-- If using connection strings provide them for both SQL & ODBC (`"Server=MY-SERVER;User Id=myuser;Password=mypassword;"` `"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY-SERVER;UID=myuser;PWD=mypassword;"`).
+- If using connection strings provide them for both SQL & ODBC ( `""`).
 - DO NOT provide the database in the connection strings, they will be added.
 
 ### Link
@@ -22,9 +22,32 @@ __access-linker.exe import "C:\My Data\LINK.accdb" \<database\> \<sql server\> [
 Import from SQL server into Access using Microsoft Access 16.0 Object Library.
 
 ### Dump
-__access-linker.exe dump "C:\My Data\DUMP.accdb" \<database\> \<sql server\>__
+__access-linker.exe dump "C:\My Data\DUMP.accdb" \<database\> \<sql server\> [oledb access]__
 
 Dump from SQL to Access using OleDb. This is just lolz you are better off using `import`.
 
 ### Encode
 __access-linker.exe encode "C:\My Data\EMPTY.accdb"__
+
+## Connection Strings
+If you are using trusted connections to SQL Server you can simpily pass the server name and don't need connection strings.
+
+If you are using credentials or have some other issue like ODBC versions or somthing.
+
+### SQL
+
+```
+"Server=MY_SERVER;User Id='MY_USER';Password='MY_PASS';"
+```
+
+### ODBC
+
+```
+"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY_SERVER;UID='MY_USER';PWD='MY_PASS';"
+```
+
+### OLEDB
+
+```
+"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';"
+```
