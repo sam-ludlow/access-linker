@@ -22,7 +22,7 @@ Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDa
 Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport).
 
 ### Dump
-`access-linker.exe dump dump <filename.accdb> <database> <sql server> [oledb access]`
+`access-linker.exe dump <filename.accdb> <database> <sql server> [oledb access]`
 
 Dump from SQL to Access using OleDb. You are normally better off using `import`.
 
