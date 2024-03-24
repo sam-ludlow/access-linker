@@ -15,6 +15,79 @@ namespace access_linker
 {
 	public class MsAccess
 	{
+		public static void Link(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
+
+			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
+			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
+
+			WriteEmptyAccess(filename);
+
+			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
+
+			TransferDatabase(filename, "acLink", tableNames, connectionStringODBC);
+		}
+
+		public static void Import(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
+
+			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
+			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
+
+			WriteEmptyAccess(filename);
+
+			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
+
+			TransferDatabase(filename, "acImport", tableNames, connectionStringODBC);
+		}
+
+		public static void Export(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
+
+			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
+
+			DataSQL.Empty(connectionString, databaseName);
+
+			string[] tableNames = ListAccessTables(filename, connectionStringODBC);
+
+			TransferDatabase(filename, "acExport", tableNames, connectionStringODBC);
+		}
+
+		public static void Dump(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string connectionStringOLEDB = arguments["ACCESS_OLEDB"];
+
+			WriteEmptyAccess(filename);
+
+			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
+			connectionStringOLEDB = MakeConnectionStringOLEDB(filename, connectionStringOLEDB);
+			
+			DumpAccess(connectionString, connectionStringOLEDB);
+		}
+
 		public static string MakeConnectionStringODBC(string server, string database)
 		{
 			if (server.Contains(";") == false)
@@ -47,35 +120,20 @@ namespace access_linker
 			return connectionString;
 		}
 
-		/// <summary>
-		/// acLink	acImport acExport
-		/// </summary>
-		public static void TransferDatabase(string accessFilename, string[] args, string type)
+		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
 		{
-			AcDataTransferType transferType = (AcDataTransferType) Enum.Parse(typeof(AcDataTransferType), type);
-
-			string databaseName = args[2];
-			string connectionStringSQL = args[3];
-			string connectionStringODBC = connectionStringSQL;
-
-			if (args.Length >= 5)
-				connectionStringODBC = args[4];
-
-			connectionStringSQL = DataSQL.MakeConnectionStringSQL(connectionStringSQL, databaseName);
-			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
-
-			string[] tableNames = DataSQL.ListDatabaseTables(connectionStringSQL);
+			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
 
 			Application application = new Application();
-			application.OpenCurrentDatabase(accessFilename);
+			application.OpenCurrentDatabase(filename);
 
 			try
 			{
 				foreach (string tableName in tableNames)
 				{
-					Console.Write($"{databaseName}.{tableName}");
+					string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
 
-					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, $"dbo.{tableName}", tableName, false, false);
+					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
 
 					Console.WriteLine();
 				}
@@ -101,19 +159,9 @@ namespace access_linker
 			}
 		}
 
-		public static void DumpAccess(string accessFilename, string[] args)
+		public static void DumpAccess(string connectionString, string connectionStringOLEDB)
 		{
-			string databaseName = args[2];
-			string connectionStringSQL = args[3];
-			string connectionStringOLEDB = null;
-
-			if (args.Length >= 5)
-				connectionStringOLEDB = args[4];
-
-			connectionStringSQL = DataSQL.MakeConnectionStringSQL(connectionStringSQL, databaseName);
-			connectionStringOLEDB = MakeConnectionStringOLEDB(accessFilename, connectionStringOLEDB);
-
-			using (var sourceConnection = new SqlConnection(connectionStringSQL))
+			using (var sourceConnection = new SqlConnection(connectionString))
 			{
 				DataSet schema = DataSQL.GetInformationSchemas(sourceConnection);
 
@@ -274,6 +322,38 @@ namespace access_linker
 			}
 
 			return tableNames.ToArray();
+		}
+
+		public static string[] ListAccessTables(string filename, string connectionString)
+		{
+			connectionString = MakeConnectionStringOLEDB(filename, connectionString);
+
+			DataTable schemaTables;
+
+			using (OleDbConnection connection = new OleDbConnection(connectionString))
+			{
+				connection.Open();
+				try
+				{
+					schemaTables = connection.GetSchema("Tables");
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
+
+			List<string> result = new List<string>();
+			foreach (DataRow row in schemaTables.Rows)
+			{
+				if ((string)row["TABLE_TYPE"] != "TABLE")
+					continue;
+
+				result.Add((string)row["TABLE_NAME"]);
+			}
+			result.Sort();
+
+			return result.ToArray();
 		}
 
 		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)

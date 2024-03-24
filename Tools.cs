@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
@@ -9,6 +10,17 @@ namespace access_linker
 {
 	public class Tools
 	{
+		public static void RequiredArguments(Dictionary<string, string> arguments, string[] requireds)
+		{
+			bool miss = false;
+			foreach (string required in requireds)
+				if (arguments.ContainsKey(required) == false)
+					miss = true;
+
+			if (requireds.Length == 0 || miss == true)
+				throw new ApplicationException("!!! USAGE !!!");
+		}
+
 		public static string TextTable(DataTable table)
 		{
 			StringBuilder result = new StringBuilder();

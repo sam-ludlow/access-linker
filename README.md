@@ -10,26 +10,35 @@ Link Microsoft Access to SQL Server Backend and other SQL tools.
 - Some commands like `rename` must be run on the server becuase of data file path names.
 
 ## Usage
-
+"FILENAME", "DATABASE", "SERVER"
 ### Link
-`access-linker.exe link <filename.accdb> <database> <sql server> [odbc server]`
+`access-linker.exe link FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
 
 Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDatabase acLink). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
 ### Import
-`access-linker.exe import <filename.accdb> <database> <sql server> [odbc server]`
+`access-linker.exe import FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
 
 Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
+### Export
+`access-linker.exe export FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
+
+Export from Access to SQL Server using Microsoft Access 16.0 Object Library (TransferDatabase acExport). You can optionally provide the ODBC connection string, used from Access to SQL server.
+
 ### Dump
-`access-linker.exe dump <filename.accdb> <database> <sql server> [oledb access]`
+`access-linker.exe dump FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> ACCESS_OLEDB=[oledb access]`
 
 Dump from SQL to Access using OleDb. You are normally better off using `import`. You can optionally provide the OleDb connection string to Access.
 
 ### Backup
-`access-linker.exe backup <filename.bak> <database> <sql server>`
+`access-linker.exe backup FILENAME=<filename.bak> DATABASE=<database> SERVER=<sql server> WITH=[WITH Options]`
 
 Backup SQL database to `.BAK` file (BACKUP DATABASE).
+
+
+
+
 
 ### Restore
 `access-linker.exe restore <filename.bak> <database> <sql server> [directory]`
@@ -40,6 +49,11 @@ Restore SQL databae from `.BAK` file (RESTORE DATABASE). You can optionally prov
 `access-linker.exe rename <source database> <target database> <sql server> [directory]`
 
 Rename SQL database including logical and physical data & log files (`.MDF` & `.LDF`). You can optionally provide the server data file directory.
+
+### Empty
+`access-linker.exe empty <database> <sql server>`
+
+Create an empty SQL database.
 
 ### Schema
 `access-linker.exe schema <database> <sql server>`

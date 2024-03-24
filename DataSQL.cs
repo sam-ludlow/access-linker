@@ -8,6 +8,20 @@ namespace access_linker
 {
 	public class DataSQL
 	{
+		public static void Backup(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string with = arguments["WITH"];
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			Backup(filename, connectionString, databaseName, with);
+		}
+
 		public static string MakeConnectionStringSQL(string server, string database)
 		{
 			if (server.Contains(";") == false)
@@ -20,6 +34,8 @@ namespace access_linker
 
 			return server;
 		}
+
+		// TODO backup / restore more (eg. RESTORE WITH NORECOVERY) 
 
 		public static void Restore(string[] args)
 		{
@@ -67,7 +83,7 @@ namespace access_linker
 				string logPhysicalName = Path.Combine(directory, $"{database}_log.ldf");
 
 				Console.Write($"Restore BAK {filename} ...");
-				ExecuteNonQuery(serverConnection, $"RESTORE DATABASE [{database}] FROM DISK='{filename}' WITH " +
+				ExecuteNonQuery(serverConnection, $"RESTORE DATABASE [{database}] FROM DISK='{filename}' WITH NORECOVERY, " +	/////////////////////////// <<<<<<<<<
 					$"MOVE '{rowsBackupLogicalName}' TO '{rowsPhysicalName}', " +
 					$"MOVE '{logBackupLogicalName}' TO '{logPhysicalName}'");
 				Console.WriteLine("...done");
@@ -81,15 +97,35 @@ namespace access_linker
 				if (logBackupLogicalName.ToLower() != logLogicalName.ToLower())
 					ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{database}] MODIFY FILE(NAME= '{logBackupLogicalName}', NEWNAME= '{logLogicalName}')");
 
-				using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, database)))
-				{
-					Console.Write($"Shrinking LDF {logPhysicalName} ...");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY SIMPLE");
-					ExecuteNonQuery(databaseConnection, $"DBCC SHRINKFILE ({logLogicalName}, 1)");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY FULL");
-					Console.WriteLine("...done");
-				}
+				//using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, database)))
+				//{
+				//	Console.Write($"Shrinking LDF {logPhysicalName} ...");
+				//	ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY SIMPLE");
+				//	ExecuteNonQuery(databaseConnection, $"DBCC SHRINKFILE ({logLogicalName}, 1)");
+				//	ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY FULL");
+				//	Console.WriteLine("...done");
+				//}
 			}
+		}
+
+		public static void BackupVerify(string filename, string connectionString)
+		{
+			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			{
+				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
+			}
+		}
+
+		public static void BackupFileList(string filename, string connectionString)
+		{
+			DataTable table;
+
+			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			{
+				table = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'").Tables[0];
+			}
+
+			Tools.PopText(table);
 		}
 
 		public static void Rename(string[] args)
@@ -185,19 +221,32 @@ namespace access_linker
 			}
 		}
 
-		public static void Backup(string filename, string database, string server)
+		public static void Backup(string filename, string connectionString, string databaseName, string with)
 		{
-			using (SqlConnection connection = new SqlConnection(MakeConnectionStringSQL(server, null)))
+			using (SqlConnection connection = new SqlConnection(connectionString))
 			{
-				using (SqlCommand command = new SqlCommand("BACKUP DATABASE @database TO DISK=@disk WITH NO_COMPRESSION", connection))
+				string commandText = "BACKUP DATABASE @database TO DISK=@disk";
+
+				if (with != null)
+					commandText += $" WITH {with}";
+
+				using (SqlCommand command = new SqlCommand(commandText, connection))
 				{
 					command.CommandTimeout = 24 * 60 * 60;
 
-					command.Parameters.AddWithValue("@database", database);
+					command.Parameters.AddWithValue("@database", databaseName);
 					command.Parameters.AddWithValue("@disk", filename);
 
 					ExecuteNonQuery(command);
 				}
+			}
+		}
+
+		public static void Empty(string server, string database)
+		{
+			using (SqlConnection connection = new SqlConnection(MakeConnectionStringSQL(server, null)))
+			{
+				ExecuteNonQuery(connection, $"CREATE DATABASE [{database}]");
 			}
 		}
 
@@ -287,6 +336,8 @@ namespace access_linker
 
 		public static int ExecuteNonQuery(SqlCommand command)
 		{
+			Console.WriteLine($"ExecuteNonQuery: {command.CommandText}");
+
 			command.Connection.Open();
 			try
 			{
