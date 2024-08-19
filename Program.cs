@@ -70,6 +70,10 @@ namespace access_linker
 					MsAccess.Export(parameters);
 					break;
 
+				case "empty":
+					MsAccess.Empty(parameters);
+					break;
+
 				case "dump":
 					MsAccess.Dump(parameters);
 					break;
@@ -78,30 +82,27 @@ namespace access_linker
 					DataSQL.Backup(parameters);
 					break;
 
-				//case "verify":
-				//	DataSQL.BackupVerify(args[1], args[2]);
-				//	break;
+				case "verify":
+					DataSQL.Verify(parameters);
+					break;
 
-				//case "list":
-				//	DataSQL.BackupFileList(args[1], args[2]);
-				//	break;
+				case "list":
+					DataSQL.List(parameters);
+					break;
 
-				//case "restore":
-				//	DataSQL.Restore(args);
-				//	break;
+				case "restore":
+					DataSQL.Restore(parameters);
+					break;
 
-				//case "rename":
-				//	DataSQL.Rename(args);
-				//	break;
+				case "rename":
+					DataSQL.Rename(parameters);
+					break;
+
+				case "create":
+					DataSQL.Create(parameters);
+					break;
 
 
-
-				//case "empty":
-				//	if (args.Length == 2)
-				//		MsAccess.WriteEmptyAccess(targetFilename);
-				//	else
-				//		DataSQL.Empty(args[1], args[2]);	//	TODO: file location
-				//	break;
 
 				//case "schema":
 				//	DataSQL.Schema(args[1], args[2]);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Data;
+using System.Xml.Linq;
 
 namespace access_linker
 {
@@ -22,6 +23,87 @@ namespace access_linker
 			Backup(filename, connectionString, databaseName, with);
 		}
 
+		public static void Verify(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string connectionString = arguments["SERVER"];
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			BackupVerify(filename, connectionString);
+		}
+
+		public static void List(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string connectionString = arguments["SERVER"];
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			BackupFileList(filename, connectionString);
+		}
+
+		public static void Restore(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string filename = arguments["FILENAME"];
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+			string with = arguments["WITH"];
+
+			string directoryMDF = arguments["DIRECTORY"];
+			string directoryLDF = arguments["LOG_DIRECTORY"];
+
+			if (directoryLDF == null)
+				directoryLDF = directoryMDF;
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			Restore(filename, connectionString, databaseName, with, directoryMDF, directoryLDF);
+		}
+
+		public static void Rename(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+			string databaseName = arguments["DATABASE"];
+			string newDatabaseName = arguments["NEW_DATABASE"];
+			string connectionString = arguments["SERVER"];
+
+			string directoryMDF = arguments["DIRECTORY"];
+			string directoryLDF = arguments["LOG_DIRECTORY"];
+
+			if (directoryLDF == null)
+				directoryLDF = directoryMDF;
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			Rename(connectionString, databaseName, newDatabaseName, directoryMDF, directoryLDF);
+		}
+
+		public static void Create(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "DATABASE", "SERVER" });
+
+			string databaseName = arguments["DATABASE"];
+			string connectionString = arguments["SERVER"];
+
+			string directoryMDF = arguments["DIRECTORY"];
+			string directoryLDF = arguments["LOG_DIRECTORY"];
+
+			if (directoryLDF == null)
+				directoryLDF = directoryMDF;
+
+			connectionString = MakeConnectionStringSQL(connectionString, null);
+
+			Create(connectionString, databaseName, directoryMDF, directoryLDF);
+		}
+
 		public static string MakeConnectionStringSQL(string server, string database)
 		{
 			if (server.Contains(";") == false)
@@ -35,33 +117,24 @@ namespace access_linker
 			return server;
 		}
 
-		// TODO backup / restore more (eg. RESTORE WITH NORECOVERY) 
-
-		public static void Restore(string[] args)
+		public static void Restore(string filename, string connectionString, string database, string with, string directoryMDF, string directoryLDF)
 		{
-			string filename = args[1];
-			string database = args[2];
-			string connectionString = args[3];
-			string directory = null;
-			if (args.Length >= 5)
-				directory = args[4];
-
-			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
 				if (DatabaseExists(serverConnection, database) == true)
 					throw new ApplicationException("Database exists");
 
-				Console.Write($"Verify BAK {filename} ...");
-				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
-				Console.WriteLine("...done");
+				if (directoryMDF == null)
+					directoryMDF = (string)ExecuteScalar(serverConnection, "SELECT SERVERPROPERTY('InstanceDefaultDataPath')");
 
-				if (directory == null)
-					directory = (string)ExecuteScalar(serverConnection, "SELECT SERVERPROPERTY('InstanceDefaultDataPath')");
+				if (directoryLDF == null)
+					directoryLDF = (string)ExecuteScalar(serverConnection, "SELECT SERVERPROPERTY('InstanceDefaultLogPath')");
 
-				while (directory.EndsWith(@"\") == true)
-					directory = directory.Substring(0, directory.Length - 1);
+				directoryMDF = directoryMDF.Trim(new char[] { '\\' });
+				directoryLDF = directoryLDF.Trim(new char[] { '\\' });
 
-				Console.WriteLine($"SQL directory: {directory}");
+				Console.WriteLine($"DATA directory: {directoryMDF}");
+				Console.WriteLine($"LOG directory: {directoryLDF}");
 
 				DataTable filesTable = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'").Tables[0];
 
@@ -79,13 +152,18 @@ namespace access_linker
 				string rowsBackupLogicalName = (string)rowsRow["LogicalName"];
 				string logBackupLogicalName = (string)logRow["LogicalName"];
 
-				string rowsPhysicalName = Path.Combine(directory, $"{database}.mdf");
-				string logPhysicalName = Path.Combine(directory, $"{database}_log.ldf");
+				string rowsPhysicalName = Path.Combine(directoryMDF, $"{database}.mdf");
+				string logPhysicalName = Path.Combine(directoryLDF, $"{database}_log.ldf");
+
+				string commandText = $"RESTORE DATABASE [{database}] FROM DISK='{filename}' WITH " +
+					$"MOVE '{rowsBackupLogicalName}' TO '{rowsPhysicalName}', " +
+					$"MOVE '{logBackupLogicalName}' TO '{logPhysicalName}'";
+
+				if (with != null)
+					commandText += $", {with}";
 
 				Console.Write($"Restore BAK {filename} ...");
-				ExecuteNonQuery(serverConnection, $"RESTORE DATABASE [{database}] FROM DISK='{filename}' WITH NORECOVERY, " +	/////////////////////////// <<<<<<<<<
-					$"MOVE '{rowsBackupLogicalName}' TO '{rowsPhysicalName}', " +
-					$"MOVE '{logBackupLogicalName}' TO '{logPhysicalName}'");
+				ExecuteNonQuery(serverConnection, commandText);
 				Console.WriteLine("...done");
 
 				string rowsLogicalName = database;
@@ -110,7 +188,7 @@ namespace access_linker
 
 		public static void BackupVerify(string filename, string connectionString)
 		{
-			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
 				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
 			}
@@ -120,7 +198,7 @@ namespace access_linker
 		{
 			DataTable table;
 
-			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
 				table = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'").Tables[0];
 			}
@@ -128,20 +206,9 @@ namespace access_linker
 			Tools.PopText(table);
 		}
 
-		public static void Rename(string[] args)
+		public static void Rename(string connectionString, string databaseSource, string databaseTarget, string directoryData, string directoryLogs)
 		{
-			string databaseSource = args[1];
-			string databaseTarget = args[2];
-			string connectionString = args[3];
-
-			string directoryData = null;
-			if (args.Length >= 5)
-				directoryData = args[4];
-			string directoryLogs = directoryData;
-			if (args.Length >= 6)
-				directoryLogs = args[5];
-
-			using (SqlConnection serverConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, null)))
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
 				if (DatabaseExists(serverConnection, databaseSource) == false)
 					throw new ApplicationException("Database Source does not exist");
@@ -242,11 +309,31 @@ namespace access_linker
 			}
 		}
 
-		public static void Empty(string server, string database)
+		public static void Create(string connectionString, string database, string directoryData, string directoryLogs)
 		{
-			using (SqlConnection connection = new SqlConnection(MakeConnectionStringSQL(server, null)))
+			using (SqlConnection connection = new SqlConnection(connectionString))
 			{
-				ExecuteNonQuery(connection, $"CREATE DATABASE [{database}]");
+				string commandText = $"CREATE DATABASE [{database}]";
+
+				string dataName = database;
+				string logName = database + "_log";
+
+				string mdfFilename = Path.Combine(directoryData, dataName + ".mdf");
+				string ldfFilename = Path.Combine(directoryLogs, logName + ".ldf");
+
+				if (directoryData != null)
+					commandText += $" ON (NAME = '{dataName}', FILENAME = '{mdfFilename}') LOG ON (NAME = '{logName}', FILENAME = '{ldfFilename}')";
+
+				ExecuteNonQuery(connection, commandText);
+			}
+		}
+
+		public static void Drop(string connectionString, string database)
+		{
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				ExecuteNonQuery(connection, $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+				ExecuteNonQuery(connection, $"DROP DATABASE [{database}]");
 			}
 		}
 

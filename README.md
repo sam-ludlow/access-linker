@@ -10,7 +10,7 @@ Link Microsoft Access to SQL Server Backend and other SQL tools.
 - Some commands like `rename` must be run on the server becuase of data file path names.
 
 ## Usage
-"FILENAME", "DATABASE", "SERVER"
+
 ### Link
 `access-linker.exe link FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
 
@@ -31,29 +31,48 @@ Export from Access to SQL Server using Microsoft Access 16.0 Object Library (Tra
 
 Dump from SQL to Access using OleDb. You are normally better off using `import`. You can optionally provide the OleDb connection string to Access.
 
+### Empty
+`access-linker.exe empty FILENAME=<filename.accdb>`
+
+Create an empty Access database.
+
 ### Backup
 `access-linker.exe backup FILENAME=<filename.bak> DATABASE=<database> SERVER=<sql server> WITH=[WITH Options]`
 
 Backup SQL database to `.BAK` file (BACKUP DATABASE).
 
+### Verify
+`access-linker.exe verify FILENAME=<filename.bak> SERVER=<sql server>`
 
+Verify the `.BAK` file (RESTORE VERIFYONLY).
 
+### List
+`access-linker.exe list FILENAME=<filename.bak> SERVER=<sql server>`
 
+List the data files within the `.BAK` file (RESTORE FILELISTONLY), will pop up in notepad.
 
 ### Restore
-`access-linker.exe restore <filename.bak> <database> <sql server> [directory]`
+`access-linker.exe restore FILENAME=<filename.bak> DATABASE=<database> SERVER=<sql server> WITH=[WITH Options] DIRECTORY=[.MDF directory] LOG_DIRECTORY=[.LDF directory]`
 
-Restore SQL databae from `.BAK` file (RESTORE DATABASE). You can optionally provide the server data file directory.
+Restore SQL databae from `.BAK` file (RESTORE DATABASE). You can optionally provide the server data file directories.
 
 ### Rename
-`access-linker.exe rename <source database> <target database> <sql server> [directory]`
+`access-linker.exe rename DATABASE=<database> NEW_DATABASE=<database> SERVER=<sql server> DIRECTORY=[.MDF directory] LOG_DIRECTORY=[.LDF directory]`
 
 Rename SQL database including logical and physical data & log files (`.MDF` & `.LDF`). You can optionally provide the server data file directory.
 
-### Empty
-`access-linker.exe empty <database> <sql server>`
+### Create
+`access-linker.exe create <database> <sql server>`
 
-Create an empty SQL database.
+Create a new SQL database.
+
+### Delete
+
+
+
+
+
+### Shrink
 
 ### Schema
 `access-linker.exe schema <database> <sql server>`

@@ -88,6 +88,15 @@ namespace access_linker
 			DumpAccess(connectionString, connectionStringOLEDB);
 		}
 
+		public static void Empty(Dictionary<string, string> arguments)
+		{
+			Tools.RequiredArguments(arguments, new string[] { "FILENAME" });
+
+			string filename = arguments["FILENAME"];
+
+			WriteEmptyAccess(filename);
+		}
+
 		public static string MakeConnectionStringODBC(string server, string database)
 		{
 			if (server.Contains(";") == false)
