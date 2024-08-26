@@ -15,6 +15,65 @@ namespace access_linker
 {
 	public class MsAccess
 	{
+		public static void Create(string filename)
+		{
+			using (MemoryStream compressedStream = new MemoryStream(Convert.FromBase64String(EMPTY_accdb_gz_base64)))
+			{
+				using (FileStream targetStream = new FileStream(filename, FileMode.Create))
+				{
+					using (GZipStream decompress = new GZipStream(compressedStream, CompressionMode.Decompress))
+					{
+						decompress.CopyTo(targetStream);
+					}
+				}
+			}
+		}
+
+		public static void Delete(string filename)
+		{
+			File.Delete(filename);
+		}
+
+		public static void Link(string filename, string sqlConnectionString, string odbcConnectionString)
+		{
+			string[] tableNames = DataSQL.ListDatabaseTables(sqlConnectionString);
+
+			TransferDatabase(filename, "acLink", tableNames, odbcConnectionString);
+		}
+
+		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
+		{
+			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
+
+			Application application = new Application();
+			application.OpenCurrentDatabase(filename);
+
+			try
+			{
+				foreach (string tableName in tableNames)
+				{
+					Console.Write(tableName);
+
+					string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
+
+					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
+
+					Console.WriteLine(".");
+				}
+			}
+			finally
+			{
+				application.CloseCurrentDatabase();
+				application.Quit();
+			}
+		}
+
+
+
+
+
+
+
 		public static void Link(Dictionary<string, string> arguments)
 		{
 			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
@@ -27,7 +86,7 @@ namespace access_linker
 			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
 			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
 
-			WriteEmptyAccess(filename);
+			Create(filename);
 
 			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
 
@@ -46,7 +105,7 @@ namespace access_linker
 			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
 			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
 
-			WriteEmptyAccess(filename);
+			Create(filename);
 
 			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
 
@@ -64,7 +123,7 @@ namespace access_linker
 
 			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
 
-			DataSQL.Empty(connectionString, databaseName);
+			//DataSQL.Empty(connectionString, databaseName);
 
 			string[] tableNames = ListAccessTables(filename, connectionStringODBC);
 
@@ -80,7 +139,7 @@ namespace access_linker
 			string connectionString = arguments["SERVER"];
 			string connectionStringOLEDB = arguments["ACCESS_OLEDB"];
 
-			WriteEmptyAccess(filename);
+			Create(filename);
 
 			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
 			connectionStringOLEDB = MakeConnectionStringOLEDB(filename, connectionStringOLEDB);
@@ -88,14 +147,7 @@ namespace access_linker
 			DumpAccess(connectionString, connectionStringOLEDB);
 		}
 
-		public static void Empty(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME" });
 
-			string filename = arguments["FILENAME"];
-
-			WriteEmptyAccess(filename);
-		}
 
 		public static string MakeConnectionStringODBC(string server, string database)
 		{
@@ -129,44 +181,9 @@ namespace access_linker
 			return connectionString;
 		}
 
-		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
-		{
-			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
 
-			Application application = new Application();
-			application.OpenCurrentDatabase(filename);
 
-			try
-			{
-				foreach (string tableName in tableNames)
-				{
-					string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
 
-					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
-
-					Console.WriteLine();
-				}
-			}
-			finally
-			{
-				application.CloseCurrentDatabase();
-				application.Quit();
-			}
-		}
-
-		public static void WriteEmptyAccess(string filename)
-		{
-			using (MemoryStream compressedStream = new MemoryStream(Convert.FromBase64String(EMPTY_accdb_gz_base64)))
-			{
-				using (FileStream targetStream = new FileStream(filename, FileMode.Create))
-				{
-					using (GZipStream decompress = new GZipStream(compressedStream, CompressionMode.Decompress))
-					{
-						decompress.CopyTo(targetStream);
-					}
-				}
-			}
-		}
 
 		public static void DumpAccess(string connectionString, string connectionStringOLEDB)
 		{

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace access_linker
 {
@@ -8,114 +7,99 @@ namespace access_linker
 	{
 		static void Main(string[] args)
 		{
-			Dictionary<string, string> parameters = new Dictionary<string, string>();
-
-			if (args.Length > 1)
+			foreach (string arg in args)
 			{
-				foreach (string arg in args.Skip(1))
-				{
 					int index = arg.IndexOf('=');
 					if (index == -1)
 						throw new ApplicationException("Bad argument expecting KEY=VALUE got: " + arg);
 
-					parameters.Add(arg.Substring(0, index).ToUpper(), arg.Substring(index + 1));
-				}
+					Globals.Arguments.Add(arg.Substring(0, index).ToUpper(), arg.Substring(index + 1));
 			}
 
 			Console.WriteLine();
 
-			foreach (string key in parameters.Keys)
-				Console.WriteLine($"{key}\t{parameters[key]}");
+			foreach (string key in Globals.Arguments.Keys)
+				Console.WriteLine($"{key}\t{Globals.Arguments[key]}");
 
 			Console.WriteLine();
 
-			if (args.Length < 2)
+			if (Globals.Arguments.ContainsKey("COMMAND") == false)
 			{
-				//	 TO UPDATE
-				Console.WriteLine("USAGE !!!");
-
-				//	SELECT SERVERPROPERTY('InstanceDefaultDataPath') AS InstanceDefaultDataPath, SERVERPROPERTY('InstanceDefaultLogPath') AS InstanceDefaultLogPath
-
-				//	COMMAND
-
-				//	FILENAME
-				//	FILENAME	(BAK)
-
-				//	DATABASE
-				//	DATABASE_DIR
-				//	DATABASE_LOG_DIR
-
-				//	WITH ???
-
-				//	SERVER
-				//	SERVER_ODBC
-				//	ACCESS_OLEDB
-
+				Console.WriteLine(" !!! USAGE !!! access-linker.exe ");
 				return;
 			}
 
-		
-
-			switch (args[0].ToLower())
+			if (Globals.Arguments.ContainsKey("DATABASE") == true && Globals.Arguments.ContainsKey("SERVER_SQL") == true)
 			{
-				case "link":
-					MsAccess.Link(parameters);
+				Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], Globals.Arguments["DATABASE"]);
+
+				if (Globals.Arguments.ContainsKey("SERVER_ODBC") == false)
+					Globals.Arguments["SERVER_ODBC"] = Globals.Arguments["SERVER_SQL"];
+
+				Globals.OdbcConnectionString = MakeConnectionStringODBC(Globals.Arguments["SERVER_ODBC"], Globals.Arguments["DATABASE"]);
+			}
+
+			Console.WriteLine($"SqlConnectionString:	{Globals.SqlConnectionString}");
+			Console.WriteLine($"OdbcConnectionString:	{Globals.OdbcConnectionString}");
+
+			Console.WriteLine();
+
+			switch (Globals.Arguments["COMMAND"].ToUpper())
+			{
+				case "ACCESS_CREATE":
+					ValidateRequiredParameters(new string[] { "FILENAME" });
+					MsAccess.Create(Globals.Arguments["FILENAME"]);
 					break;
 
-				case "import":
-					MsAccess.Import(parameters);
+				case "ACCESS_DELETE":
+					ValidateRequiredParameters(new string[] { "FILENAME" });
+					MsAccess.Delete(Globals.Arguments["FILENAME"]);
 					break;
 
-				case "export":
-					MsAccess.Export(parameters);
+				case "ACCESS_LINK":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
+					MsAccess.Link(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.OdbcConnectionString);
 					break;
-
-				case "empty":
-					MsAccess.Empty(parameters);
-					break;
-
-				case "dump":
-					MsAccess.Dump(parameters);
-					break;
-
-				case "backup":
-					DataSQL.Backup(parameters);
-					break;
-
-				case "verify":
-					DataSQL.Verify(parameters);
-					break;
-
-				case "list":
-					DataSQL.List(parameters);
-					break;
-
-				case "restore":
-					DataSQL.Restore(parameters);
-					break;
-
-				case "rename":
-					DataSQL.Rename(parameters);
-					break;
-
-				case "create":
-					DataSQL.Create(parameters);
-					break;
-
-
-
-				//case "schema":
-				//	DataSQL.Schema(args[1], args[2]);
-				//	break;
-
-				//case "encode":
-				//	Tools.EncodeFile(targetFilename);
-				//	break;
 
 				default:
-					Console.WriteLine($"Unknow command {args[0]}");
+					Console.WriteLine($" !!! access-linker.exe Unknow command {Globals.Arguments["COMMAND"]}");
 					break;
 			}
+		}
+
+		private static void ValidateRequiredParameters(string[] names)
+		{
+			List<string> missing = new List<string>();
+
+			foreach (string name in names)
+				if (Globals.Arguments.ContainsKey(name) == false)
+					missing.Add(name);
+
+			if (missing.Count > 0)
+				throw new ApplicationException($"This command requires these parameters '{String.Join(", ", missing)}'.");
+
+		}
+
+		public static string MakeConnectionStringSQL(string server, string database)
+		{
+			if (server.Contains(";") == false)
+				server = $"Data Source='{server}';Integrated Security=True;TrustServerCertificate=True;";
+
+			if (database != null)
+				server += $"Initial Catalog='{database}';";
+
+			return server;
+		}
+
+		public static string MakeConnectionStringODBC(string server, string database)
+		{
+			if (server.Contains(";") == false)
+				server = $"ODBC;Driver={{ODBC Driver 17 for SQL Server}};SERVER={server};Trusted_Connection=Yes;";
+
+			if (database != null)
+				server += $"DATABASE={database};";
+
+			return server;
 		}
 	}
 }

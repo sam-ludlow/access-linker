@@ -112,8 +112,6 @@ namespace access_linker
 			if (database != null)
 				server += $"Initial Catalog='{database}';";
 
-			Console.WriteLine($"SQL Connection: {server}");
-
 			return server;
 		}
 
@@ -354,6 +352,7 @@ namespace access_linker
 
 		public static string[] ListDatabaseTables(string connectionString)
 		{
+			Console.WriteLine($">{connectionString}<");
 			using (SqlConnection connection = new SqlConnection(connectionString))
 				return ListDatabaseTables(connection);
 		}

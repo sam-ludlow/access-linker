@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataSQL.cs" />
+    <Compile Include="Globals.cs" />
     <Compile Include="MsAccess.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -55,6 +56,9 @@
     <None Include="App.config" />
     <None Include="LICENSE" />
     <None Include="README.md" />
+    <None Include="test.cmd">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="ADODB">
