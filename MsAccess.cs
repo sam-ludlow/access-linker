@@ -46,24 +46,31 @@ namespace access_linker
 			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
 
 			Application application = new Application();
-			application.OpenCurrentDatabase(filename);
 
 			try
 			{
-				foreach (string tableName in tableNames)
+				application.OpenCurrentDatabase(filename);
+
+				try
 				{
-					Console.Write(tableName);
+					foreach (string tableName in tableNames)
+					{
+						Console.Write(tableName);
 
-					string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
+						string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
 
-					application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
+						application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
 
-					Console.WriteLine(".");
+						Console.WriteLine(".");
+					}
+				}
+				finally
+				{
+					application.CloseCurrentDatabase();
 				}
 			}
 			finally
 			{
-				application.CloseCurrentDatabase();
 				application.Quit();
 			}
 		}
