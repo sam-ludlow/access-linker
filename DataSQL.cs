@@ -9,6 +9,71 @@ namespace access_linker
 {
 	public class DataSQL
 	{
+
+
+
+		public static void Create(string connectionString, string database, string directoryData, string directoryLogs)
+		{
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				string commandText = $"CREATE DATABASE [{database}]";
+
+				if (directoryData != null)
+				{
+					string dataName = database;
+					string logName = database + "_log";
+
+					string mdfFilename = Path.Combine(directoryData, dataName + ".mdf");
+					string ldfFilename = Path.Combine(directoryLogs, logName + ".ldf");
+
+					commandText += $" ON (NAME = '{dataName}', FILENAME = '{mdfFilename}') LOG ON (NAME = '{logName}', FILENAME = '{ldfFilename}')";
+				}
+
+				ExecuteNonQuery(connection, commandText);
+			}
+		}
+
+
+		public static void Delete(string connectionString, string database)
+		{
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				if (DatabaseExists(connection, database) == true)
+				{
+					ExecuteNonQuery(connection, $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+					ExecuteNonQuery(connection, $"DROP DATABASE [{database}]");
+				}
+			}
+		}
+
+		public static bool DatabaseExists(SqlConnection connection, string name)
+		{
+			using (SqlCommand command = new SqlCommand("SELECT name FROM sys.databases WHERE name = @name", connection))
+			{
+				command.Parameters.AddWithValue("@name", name);
+
+				object obj = ExecuteScalar(command);
+
+				if (obj == null || obj is DBNull)
+					return false;
+
+				return true;
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		public static void Backup(Dictionary<string, string> arguments)
 		{
 			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
@@ -307,48 +372,11 @@ namespace access_linker
 			}
 		}
 
-		public static void Create(string connectionString, string database, string directoryData, string directoryLogs)
-		{
-			using (SqlConnection connection = new SqlConnection(connectionString))
-			{
-				string commandText = $"CREATE DATABASE [{database}]";
 
-				string dataName = database;
-				string logName = database + "_log";
 
-				string mdfFilename = Path.Combine(directoryData, dataName + ".mdf");
-				string ldfFilename = Path.Combine(directoryLogs, logName + ".ldf");
 
-				if (directoryData != null)
-					commandText += $" ON (NAME = '{dataName}', FILENAME = '{mdfFilename}') LOG ON (NAME = '{logName}', FILENAME = '{ldfFilename}')";
 
-				ExecuteNonQuery(connection, commandText);
-			}
-		}
 
-		public static void Drop(string connectionString, string database)
-		{
-			using (SqlConnection connection = new SqlConnection(connectionString))
-			{
-				ExecuteNonQuery(connection, $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
-				ExecuteNonQuery(connection, $"DROP DATABASE [{database}]");
-			}
-		}
-
-		public static bool DatabaseExists(SqlConnection connection, string name)
-		{
-			using (SqlCommand command = new SqlCommand("SELECT name FROM sys.databases WHERE name = @name", connection))
-			{
-				command.Parameters.AddWithValue("@name", name);
-
-				object obj = ExecuteScalar(command);
-
-				if (obj == null || obj is DBNull)
-					return false;
-
-				return true;
-			}
-		}
 
 		public static string[] ListDatabaseTables(string connectionString)
 		{

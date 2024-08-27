@@ -41,6 +41,50 @@ namespace access_linker
 			TransferDatabase(filename, "acLink", tableNames, odbcConnectionString);
 		}
 
+		public static void Import(string filename, string sqlConnectionString, string odbcConnectionString)
+		{
+			string[] tableNames = DataSQL.ListDatabaseTables(sqlConnectionString);
+
+			TransferDatabase(filename, "acImport", tableNames, odbcConnectionString);
+		}
+
+		public static void Export(string filename, string oledbConnectionString, string odbcConnectionString)
+		{
+			string[] tableNames = ListAccessTables(oledbConnectionString);
+
+			TransferDatabase(filename, "acExport", tableNames, odbcConnectionString);
+		}
+
+		public static string[] ListAccessTables(string oledbConnectionString)
+		{
+			DataTable schemaTables;
+
+			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
+			{
+				connection.Open();
+				try
+				{
+					schemaTables = connection.GetSchema("Tables");
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
+
+			List<string> result = new List<string>();
+			foreach (DataRow row in schemaTables.Rows)
+			{
+				if ((string)row["TABLE_TYPE"] != "TABLE")
+					continue;
+
+				result.Add((string)row["TABLE_NAME"]);
+			}
+			result.Sort();
+
+			return result.ToArray();
+		}
+
 		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
 		{
 			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
@@ -59,7 +103,7 @@ namespace access_linker
 
 						string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
 
-						application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, false);
+						application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, true);
 
 						Console.WriteLine(".");
 					}
@@ -81,61 +125,9 @@ namespace access_linker
 
 
 
-		public static void Link(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
 
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
 
-			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
-			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
 
-			Create(filename);
-
-			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
-
-			TransferDatabase(filename, "acLink", tableNames, connectionStringODBC);
-		}
-
-		public static void Import(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
-
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
-
-			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
-			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
-
-			Create(filename);
-
-			string[] tableNames = DataSQL.ListDatabaseTables(connectionString);
-
-			TransferDatabase(filename, "acImport", tableNames, connectionStringODBC);
-		}
-
-		public static void Export(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
-
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string connectionStringODBC = arguments["SERVER_ODBC"] ?? connectionString;
-
-			connectionStringODBC = MakeConnectionStringODBC(connectionStringODBC, databaseName);
-
-			//DataSQL.Empty(connectionString, databaseName);
-
-			string[] tableNames = ListAccessTables(filename, connectionStringODBC);
-
-			TransferDatabase(filename, "acExport", tableNames, connectionStringODBC);
-		}
 
 		public static void Dump(Dictionary<string, string> arguments)
 		{
@@ -149,44 +141,14 @@ namespace access_linker
 			Create(filename);
 
 			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
-			connectionStringOLEDB = MakeConnectionStringOLEDB(filename, connectionStringOLEDB);
+			connectionStringOLEDB = "";// MakeConnectionStringOLEDB(filename, connectionStringOLEDB);
 			
 			DumpAccess(connectionString, connectionStringOLEDB);
 		}
 
 
 
-		public static string MakeConnectionStringODBC(string server, string database)
-		{
-			if (server.Contains(";") == false)
-				server = $"ODBC;Driver={{ODBC Driver 17 for SQL Server}};SERVER={server};Trusted_Connection=Yes;";
 
-			if (database != null)
-				server += $"DATABASE={database};";
-
-			Console.WriteLine($"ODBC Connection: {server}");
-
-			return server;
-		}
-
-		public static string MakeConnectionStringOLEDB(string accessFilename, string connectionString)
-		{
-			if (connectionString == null)
-				connectionString = $"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';";
-
-			connectionString += $"Data Source='{accessFilename}';";
-
-			string systemDatabaseFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Access", "System.mdw");
-
-			if (File.Exists(systemDatabaseFilename) == false)
-				throw new ApplicationException($"Microsoft Access System database missing: '{systemDatabaseFilename}'.");
-
-			connectionString += $"Jet OLEDB:System Database='{systemDatabaseFilename}';";
-
-			Console.WriteLine($"OLEDB Connection: {connectionString}");
-
-			return connectionString;
-		}
 
 
 
@@ -357,37 +319,7 @@ namespace access_linker
 			return tableNames.ToArray();
 		}
 
-		public static string[] ListAccessTables(string filename, string connectionString)
-		{
-			connectionString = MakeConnectionStringOLEDB(filename, connectionString);
 
-			DataTable schemaTables;
-
-			using (OleDbConnection connection = new OleDbConnection(connectionString))
-			{
-				connection.Open();
-				try
-				{
-					schemaTables = connection.GetSchema("Tables");
-				}
-				finally
-				{
-					connection.Close();
-				}
-			}
-
-			List<string> result = new List<string>();
-			foreach (DataRow row in schemaTables.Rows)
-			{
-				if ((string)row["TABLE_TYPE"] != "TABLE")
-					continue;
-
-				result.Add((string)row["TABLE_NAME"]);
-			}
-			result.Sort();
-
-			return result.ToArray();
-		}
 
 		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)
 		{

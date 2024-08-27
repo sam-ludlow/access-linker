@@ -17,5 +17,6 @@ namespace access_linker
 
 		public static string SqlConnectionString;
 		public static string OdbcConnectionString;
+		public static string OleDbConnectionString;
 	}
 }

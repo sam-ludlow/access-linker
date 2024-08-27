@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace access_linker
 {
@@ -29,6 +30,8 @@ namespace access_linker
 				return;
 			}
 
+			string command = Globals.Arguments["COMMAND"].ToUpper();
+
 			if (Globals.Arguments.ContainsKey("DATABASE") == true && Globals.Arguments.ContainsKey("SERVER_SQL") == true)
 			{
 				Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], Globals.Arguments["DATABASE"]);
@@ -39,12 +42,21 @@ namespace access_linker
 				Globals.OdbcConnectionString = MakeConnectionStringODBC(Globals.Arguments["SERVER_ODBC"], Globals.Arguments["DATABASE"]);
 			}
 
+			if (Globals.Arguments.ContainsKey("FILENAME") == true)
+			{
+				if (Globals.Arguments.ContainsKey("SERVER_OLEDB") == false)
+					Globals.Arguments["SERVER_OLEDB"] = Globals.Arguments["FILENAME"];
+
+				Globals.OleDbConnectionString = MakeConnectionStringOLEDB(Globals.Arguments["SERVER_OLEDB"]);
+			}
+
 			Console.WriteLine($"SqlConnectionString:	{Globals.SqlConnectionString}");
 			Console.WriteLine($"OdbcConnectionString:	{Globals.OdbcConnectionString}");
+			Console.WriteLine($"OleDbConnectionString:	{Globals.OleDbConnectionString}");
 
 			Console.WriteLine();
 
-			switch (Globals.Arguments["COMMAND"].ToUpper())
+			switch (command)
 			{
 				case "ACCESS_CREATE":
 					ValidateRequiredParameters(new string[] { "FILENAME" });
@@ -60,6 +72,41 @@ namespace access_linker
 					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
 					MsAccess.Link(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.OdbcConnectionString);
 					break;
+
+				case "ACCESS_IMPORT":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
+					MsAccess.Import(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.OdbcConnectionString);
+					break;
+
+				case "ACCESS_EXPORT":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_OLEDB", "SERVER_ODBC" });
+					MsAccess.Export(Globals.Arguments["FILENAME"], Globals.OleDbConnectionString, Globals.OdbcConnectionString);
+					break;
+
+
+
+
+				case "SQL_CREATE":
+					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
+
+					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+
+					string dataDirectory = Globals.Arguments.ContainsKey("SQL_DATA_DIRECTORY") == true ? Globals.Arguments["SQL_DATA_DIRECTORY"] : null;
+					string logDirectory = Globals.Arguments.ContainsKey("SQL_LOG_DIRECTORY") == true ? Globals.Arguments["SQL_LOG_DIRECTORY"] : null;
+					if (dataDirectory != null && logDirectory == null)
+						logDirectory = dataDirectory;
+
+					DataSQL.Create(Globals.SqlConnectionString, Globals.Arguments["DATABASE"], dataDirectory, logDirectory);
+					break;
+
+				case "SQL_DELETE":
+					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
+
+					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+
+					DataSQL.Delete(Globals.SqlConnectionString, Globals.Arguments["DATABASE"]);
+					break;
+
 
 				default:
 					Console.WriteLine($" !!! access-linker.exe Unknow command {Globals.Arguments["COMMAND"]}");
@@ -100,6 +147,21 @@ namespace access_linker
 				server += $"DATABASE={database};";
 
 			return server;
+		}
+
+		public static string MakeConnectionStringOLEDB(string accessFilename)
+		{
+			if (accessFilename.Contains(";") == false)
+				accessFilename = $"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';Data Source='{accessFilename}';";
+
+			string systemDatabaseFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Access", "System.mdw");
+
+			if (File.Exists(systemDatabaseFilename) == false)
+				throw new ApplicationException($"Microsoft Access System database missing: '{systemDatabaseFilename}'.");
+
+			accessFilename += $"Jet OLEDB:System Database='{systemDatabaseFilename}';";
+
+			return accessFilename;
 		}
 	}
 }
