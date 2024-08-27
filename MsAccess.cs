@@ -55,36 +55,6 @@ namespace access_linker
 			TransferDatabase(filename, "acExport", tableNames, odbcConnectionString);
 		}
 
-		public static string[] ListAccessTables(string oledbConnectionString)
-		{
-			DataTable schemaTables;
-
-			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
-			{
-				connection.Open();
-				try
-				{
-					schemaTables = connection.GetSchema("Tables");
-				}
-				finally
-				{
-					connection.Close();
-				}
-			}
-
-			List<string> result = new List<string>();
-			foreach (DataRow row in schemaTables.Rows)
-			{
-				if ((string)row["TABLE_TYPE"] != "TABLE")
-					continue;
-
-				result.Add((string)row["TABLE_NAME"]);
-			}
-			result.Sort();
-
-			return result.ToArray();
-		}
-
 		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
 		{
 			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
@@ -119,48 +89,43 @@ namespace access_linker
 			}
 		}
 
-
-
-
-
-
-
-
-
-
-
-		public static void Dump(Dictionary<string, string> arguments)
+		public static string[] ListAccessTables(string oledbConnectionString)
 		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+			DataTable schemaTables;
 
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string connectionStringOLEDB = arguments["ACCESS_OLEDB"];
+			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
+			{
+				connection.Open();
+				try
+				{
+					schemaTables = connection.GetSchema("Tables");
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
 
-			Create(filename);
+			List<string> result = new List<string>();
+			foreach (DataRow row in schemaTables.Rows)
+			{
+				if ((string)row["TABLE_TYPE"] != "TABLE")
+					continue;
 
-			connectionString = DataSQL.MakeConnectionStringSQL(connectionString, databaseName);
-			connectionStringOLEDB = "";// MakeConnectionStringOLEDB(filename, connectionStringOLEDB);
-			
-			DumpAccess(connectionString, connectionStringOLEDB);
+				result.Add((string)row["TABLE_NAME"]);
+			}
+			result.Sort();
+
+			return result.ToArray();
 		}
 
-
-
-
-
-
-
-
-
-		public static void DumpAccess(string connectionString, string connectionStringOLEDB)
+		public static void Dump(string sqlConnectionString, string oledbConnectionString)
 		{
-			using (var sourceConnection = new SqlConnection(connectionString))
+			using (var sourceConnection = new SqlConnection(sqlConnectionString))
 			{
 				DataSet schema = DataSQL.GetInformationSchemas(sourceConnection);
 
-				using (var targetConnection = new OleDbConnection(connectionStringOLEDB))
+				using (var targetConnection = new OleDbConnection(oledbConnectionString))
 				{
 					foreach (string tableName in CreateAccessTables(schema, targetConnection))
 					{
@@ -172,66 +137,6 @@ namespace access_linker
 						AccessBulkInsert(targetConnection, table);
 					}
 				}
-			}
-		}
-		
-		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
-		{
-			Regex whiteSpace = new Regex(@"\s+");
-
-			using (TempDirectory TempDir = new TempDirectory())
-			{
-				string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
-				string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
-
-				File.WriteAllLines(iniFilename, new string[] {
-					$"[{Path.GetFileName(csvFilename)}]",
-					"Format=TabDelimited",
-					"CharacterSet=65001",
-					"HDR=YES",
-				});
-
-				using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
-				{
-					foreach (DataColumn column in table.Columns)
-					{
-						if (column.Ordinal > 0)
-							writer.Write('\t');
-
-						writer.Write(column.ColumnName);
-					}
-					writer.WriteLine();
-
-					foreach (DataRow row in table.Rows)
-					{
-						foreach (DataColumn column in table.Columns)
-						{
-							if (column.Ordinal > 0)
-								writer.Write('\t');
-
-							if (row.IsNull(column) == false)
-							{
-								string value = Convert.ToString(row[column]);
-								value = whiteSpace.Replace(value, " ");
-								value = value.Replace("\"", "\"\"");
-
-								if (column.DataType.Name == "String")
-									writer.Write('\"');
-
-								writer.Write(value);
-
-								if (column.DataType.Name == "String")
-									writer.Write('\"');
-							}
-						}
-						writer.WriteLine();
-					}
-				}
-				string commandText = $"INSERT INTO [{table.TableName}] SELECT * FROM [Text;CharacterSet=65001;Database={Path.GetDirectoryName(csvFilename)}].[{Path.GetFileName(csvFilename)}]";
-
-				Console.WriteLine(commandText);
-
-				ExecuteNonQuery(connection, commandText);
 			}
 		}
 
@@ -319,7 +224,65 @@ namespace access_linker
 			return tableNames.ToArray();
 		}
 
+		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
+		{
+			Regex whiteSpace = new Regex(@"\s+");
 
+			using (TempDirectory TempDir = new TempDirectory())
+			{
+				string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
+				string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
+
+				File.WriteAllLines(iniFilename, new string[] {
+					$"[{Path.GetFileName(csvFilename)}]",
+					"Format=TabDelimited",
+					"CharacterSet=65001",
+					"HDR=YES",
+				});
+
+				using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
+				{
+					foreach (DataColumn column in table.Columns)
+					{
+						if (column.Ordinal > 0)
+							writer.Write('\t');
+
+						writer.Write(column.ColumnName);
+					}
+					writer.WriteLine();
+
+					foreach (DataRow row in table.Rows)
+					{
+						foreach (DataColumn column in table.Columns)
+						{
+							if (column.Ordinal > 0)
+								writer.Write('\t');
+
+							if (row.IsNull(column) == false)
+							{
+								string value = Convert.ToString(row[column]);
+								value = whiteSpace.Replace(value, " ");
+								value = value.Replace("\"", "\"\"");
+
+								if (column.DataType.Name == "String")
+									writer.Write('\"');
+
+								writer.Write(value);
+
+								if (column.DataType.Name == "String")
+									writer.Write('\"');
+							}
+						}
+						writer.WriteLine();
+					}
+				}
+				string commandText = $"INSERT INTO [{table.TableName}] SELECT * FROM [Text;CharacterSet=65001;Database={Path.GetDirectoryName(csvFilename)}].[{Path.GetFileName(csvFilename)}]";
+
+				Console.WriteLine(commandText);
+
+				ExecuteNonQuery(connection, commandText);
+			}
+		}
 
 		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)
 		{
