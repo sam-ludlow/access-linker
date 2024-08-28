@@ -140,6 +140,36 @@ namespace access_linker
 			}
 		}
 
+		public static DataSet Schema(string oledbConnectionString)
+		{
+			DataSet dataSet = new DataSet();
+
+			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
+			{
+				connection.Open();
+				try
+				{
+					List<string> collectionNames = new List<string>();
+					foreach (DataRow row in connection.GetSchema().Rows)
+						collectionNames.Add((string)row["CollectionName"]);
+					collectionNames.Sort();
+
+					foreach (string collectionName in collectionNames)
+					{
+						DataTable table = connection.GetSchema(collectionName);
+						table.TableName = collectionName;
+						dataSet.Tables.Add(table);
+					}
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
+
+			return dataSet;
+		}
+
 		public static string[] CreateAccessTables(DataSet schema, OleDbConnection connection)
 		{
 			List<string> ignoreTableNames = new List<string>(new string[] {

@@ -88,6 +88,11 @@ namespace access_linker
 					MsAccess.Insert(Globals.SqlConnectionString, Globals.OleDbConnectionString);
 					break;
 
+				case "ACCESS_SCHEMA":
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_OLEDB" });
+					Tools.PopText(MsAccess.Schema(Globals.OleDbConnectionString));
+					break;
+
 
 
 				case "SQL_CREATE":
