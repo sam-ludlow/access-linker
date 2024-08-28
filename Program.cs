@@ -58,6 +58,13 @@ namespace access_linker
 
 			switch (command)
 			{
+				case "ENCODE":
+					ValidateRequiredParameters(new string[] { "FILENAME" });
+					Tools.PopText(Tools.EncodeFile(Globals.Arguments["FILENAME"]));
+					break;
+
+
+
 				case "ACCESS_CREATE":
 					ValidateRequiredParameters(new string[] { "FILENAME" });
 					MsAccess.Create(Globals.Arguments["FILENAME"]);
@@ -125,6 +132,8 @@ namespace access_linker
 					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
 					Tools.PopText(DataSQL.SchemaANSI(Globals.SqlConnectionString));
 					break;
+
+
 
 				default:
 					Console.WriteLine($" !!! access-linker.exe Unknow command {Globals.Arguments["COMMAND"]}");

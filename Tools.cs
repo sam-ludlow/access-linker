@@ -55,7 +55,7 @@ namespace access_linker
 			return result.ToString();
 		}
 
-		public static void EncodeFile(string filename)
+		public static string EncodeFile(string filename)
 		{
 			int width = 76;
 
@@ -81,7 +81,7 @@ namespace access_linker
 					result.AppendLine(base64.Substring(index, length));
 				}
 
-				PopText(result.ToString());
+				return result.ToString();
 			}
 		}
 
