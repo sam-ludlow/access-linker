@@ -114,7 +114,7 @@ echo %line%
 
 :: ########### ACCESS_IMPORT & ACCESS_EXPORT
 
-::goto skip_access_import_export
+goto skip_access_import_export
 
 
 %exe_filename% COMMAND=ACCESS_DELETE FILENAME=%access_filename%
@@ -132,7 +132,14 @@ echo %line%
 %line%
 
 
-:skip_access_import
+:skip_access_import_export
 
-:: ###########################
+:: ########################### ACCESS_INSERT
+
+%exe_filename% COMMAND=ACCESS_DELETE FILENAME=%access_filename%
+%exe_filename% COMMAND=ACCESS_CREATE FILENAME=%access_filename%
+
+set line=%exe_filename% COMMAND=ACCESS_INSERT FILENAME=%access_filename% DATABASE=%sql_source_database% SERVER_SQL=%sql_server_name%
+echo %line%
+%line%
 

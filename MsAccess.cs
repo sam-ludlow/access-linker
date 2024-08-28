@@ -119,7 +119,7 @@ namespace access_linker
 			return result.ToArray();
 		}
 
-		public static void Dump(string sqlConnectionString, string oledbConnectionString)
+		public static void Insert(string sqlConnectionString, string oledbConnectionString)
 		{
 			using (var sourceConnection = new SqlConnection(sqlConnectionString))
 			{
@@ -170,11 +170,18 @@ namespace access_linker
 
 					switch (DATA_TYPE)
 					{
+						case "char":
 						case "varchar":
 						case "nvarchar":
 							dataType = "VARCHAR";
 							if (CHARACTER_MAXIMUM_LENGTH == -1 || CHARACTER_MAXIMUM_LENGTH > 255)
 								dataType = "LONGTEXT";
+
+							IS_NULLABLE = "YES"; // Access don't seem to like empty strings
+							break;
+
+						case "bit":
+							dataType = "BIT";
 							break;
 
 						case "int":
@@ -187,6 +194,10 @@ namespace access_linker
 
 						case "datetime":
 							dataType = "DATETIME";
+							break;
+
+						case "datetime2":
+							dataType = "DATETIME2";
 							break;
 
 						default:
@@ -226,8 +237,6 @@ namespace access_linker
 
 		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
 		{
-			Regex whiteSpace = new Regex(@"\s+");
-
 			using (TempDirectory TempDir = new TempDirectory())
 			{
 				string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
@@ -261,7 +270,7 @@ namespace access_linker
 							if (row.IsNull(column) == false)
 							{
 								string value = Convert.ToString(row[column]);
-								value = whiteSpace.Replace(value, " ");
+
 								value = value.Replace("\"", "\"\"");
 
 								if (column.DataType.Name == "String")

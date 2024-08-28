@@ -83,6 +83,10 @@ namespace access_linker
 					MsAccess.Export(Globals.Arguments["FILENAME"], Globals.OleDbConnectionString, Globals.OdbcConnectionString);
 					break;
 
+				case "ACCESS_INSERT":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_OLEDB" });
+					MsAccess.Insert(Globals.SqlConnectionString, Globals.OleDbConnectionString);
+					break;
 
 
 
