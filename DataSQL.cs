@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Data;
-using System.Xml.Linq;
 
 namespace access_linker
 {
@@ -61,10 +60,81 @@ namespace access_linker
 			}
 		}
 
+		public static DataSet Schema(string sqlConnectionString)
+		{
+			DataSet dataSet = new DataSet();
 
+			using (SqlConnection connection = new SqlConnection(sqlConnectionString))
+			{
+				connection.Open();
+				try
+				{
+					List<string> collectionNames = new List<string>();
+					foreach (DataRow row in connection.GetSchema().Rows)
+						collectionNames.Add((string)row["CollectionName"]);
+					collectionNames.Sort();
 
+					foreach (string collectionName in collectionNames)
+					{
+						DataTable table = connection.GetSchema(collectionName);
+						table.TableName = collectionName;
+						dataSet.Tables.Add(table);
+					}
+				}
+				finally
+				{
+					connection.Close();
+				}
+			}
 
+			return dataSet;
+		}
 
+		public static DataSet SchemaANSI(string sqlConnectionString)
+		{
+			using (SqlConnection connection = new SqlConnection(sqlConnectionString))
+				return GetInformationSchemas(connection);
+		}
+
+		public static DataSet GetInformationSchemas(SqlConnection connection)
+		{
+			string[] informationSchemaNames = {
+				"CHECK_CONSTRAINTS",
+				"COLUMN_DOMAIN_USAGE",
+				"COLUMN_PRIVILEGES",
+				"COLUMNS",
+				"CONSTRAINT_COLUMN_USAGE",
+				"CONSTRAINT_TABLE_USAGE",
+				"DOMAIN_CONSTRAINTS",
+				"DOMAINS",
+				"KEY_COLUMN_USAGE",
+				"PARAMETERS",
+				"REFERENTIAL_CONSTRAINTS",
+				"ROUTINE_COLUMNS",
+				"ROUTINES",
+				"SCHEMATA",
+				"TABLE_CONSTRAINTS",
+				"TABLE_PRIVILEGES",
+				"TABLES",
+				"VIEW_COLUMN_USAGE",
+				"VIEW_TABLE_USAGE",
+				"VIEWS",
+			};
+
+			DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
+
+			foreach (string name in informationSchemaNames)
+			{
+				using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
+				{
+					DataTable table = new DataTable(name);
+					adapter.Fill(table);
+					dataSet.Tables.Add(table);
+				}
+			}
+
+			return dataSet;
+		}
 
 
 
@@ -199,7 +269,7 @@ namespace access_linker
 				Console.WriteLine($"DATA directory: {directoryMDF}");
 				Console.WriteLine($"LOG directory: {directoryLDF}");
 
-				DataTable filesTable = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'").Tables[0];
+				DataTable filesTable = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
 
 				if (filesTable.Rows.Count != 2)
 					throw new ApplicationException("This only works with one ROWS and one LOG file");
@@ -263,7 +333,7 @@ namespace access_linker
 
 			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
-				table = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'").Tables[0];
+				table = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
 			}
 
 			Tools.PopText(table);
@@ -285,7 +355,7 @@ namespace access_linker
 
 				using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, databaseTarget)))
 				{
-					DataTable filesTable = ExecuteFill(databaseConnection, "SELECT * FROM sys.database_files").Tables[0];
+					DataTable filesTable = ExecuteFill(databaseConnection, "SELECT * FROM sys.database_files");
 
 					if (filesTable.Rows.Count != 2)
 						throw new ApplicationException("This only works with one ROWS and one LOG database");
@@ -342,14 +412,6 @@ namespace access_linker
 			}
 		}
 
-		public static void Schema(string database, string server)
-		{
-			using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(server, database)))
-			{
-				DataSet schema = GetInformationSchemas(databaseConnection);
-				Tools.PopText(schema);
-			}
-		}
 
 		public static void Backup(string filename, string connectionString, string databaseName, string with)
 		{
@@ -380,7 +442,6 @@ namespace access_linker
 
 		public static string[] ListDatabaseTables(string connectionString)
 		{
-			Console.WriteLine($">{connectionString}<");
 			using (SqlConnection connection = new SqlConnection(connectionString))
 				return ListDatabaseTables(connection);
 		}
@@ -390,7 +451,7 @@ namespace access_linker
 			List<string> result = new List<string>();
 
 			DataTable table = DataSQL.ExecuteFill(connection,
-				"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME").Tables[0];
+				"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
 
 			foreach (DataRow row in table.Rows)
 				result.Add((string)row["TABLE_NAME"]);
@@ -398,45 +459,6 @@ namespace access_linker
 			return result.ToArray();
 		}
 
-		public static DataSet GetInformationSchemas(SqlConnection connection)
-		{
-			string[] informationSchemaNames = {
-				"CHECK_CONSTRAINTS",
-				"COLUMN_DOMAIN_USAGE",
-				"COLUMN_PRIVILEGES",
-				"COLUMNS",
-				"CONSTRAINT_COLUMN_USAGE",
-				"CONSTRAINT_TABLE_USAGE",
-				"DOMAIN_CONSTRAINTS",
-				"DOMAINS",
-				"KEY_COLUMN_USAGE",
-				"PARAMETERS",
-				"REFERENTIAL_CONSTRAINTS",
-				"ROUTINE_COLUMNS",
-				"ROUTINES",
-				"SCHEMATA",
-				"TABLE_CONSTRAINTS",
-				"TABLE_PRIVILEGES",
-				"TABLES",
-				"VIEW_COLUMN_USAGE",
-				"VIEW_TABLE_USAGE",
-				"VIEWS",
-			};
-
-			DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
-
-			foreach (string name in informationSchemaNames)
-			{
-				using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
-				{
-					DataTable table = new DataTable(name);
-					adapter.Fill(table);
-					dataSet.Tables.Add(table);
-				}
-			}
-
-			return dataSet;
-		}
 
 		public static int ExecuteNonQuery(SqlConnection connection, string commandText)
 		{
@@ -482,14 +504,12 @@ namespace access_linker
 			}
 		}
 
-		public static DataSet ExecuteFill(SqlConnection connection, string commandText)
+		public static DataTable ExecuteFill(SqlConnection connection, string commandText)
 		{
-			DataSet dataSet = new DataSet();
-
+			DataTable table = new DataTable();
 			using (SqlDataAdapter adapter = new SqlDataAdapter(commandText, connection))
-				adapter.Fill(dataSet);
-
-			return dataSet;
+				adapter.Fill(table);
+			return table;
 		}
 	}
 }

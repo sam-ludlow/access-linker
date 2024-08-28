@@ -67,6 +67,11 @@ namespace access_linker
 					ValidateRequiredParameters(new string[] { "FILENAME" });
 					MsAccess.Delete(Globals.Arguments["FILENAME"]);
 					break;
+				
+				case "ACCESS_SCHEMA":
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_OLEDB" });
+					Tools.PopText(MsAccess.Schema(Globals.OleDbConnectionString));
+					break;
 
 				case "ACCESS_LINK":
 					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
@@ -86,11 +91,6 @@ namespace access_linker
 				case "ACCESS_INSERT":
 					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_OLEDB" });
 					MsAccess.Insert(Globals.SqlConnectionString, Globals.OleDbConnectionString);
-					break;
-
-				case "ACCESS_SCHEMA":
-					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_OLEDB" });
-					Tools.PopText(MsAccess.Schema(Globals.OleDbConnectionString));
 					break;
 
 
@@ -116,6 +116,15 @@ namespace access_linker
 					DataSQL.Delete(Globals.SqlConnectionString, Globals.Arguments["DATABASE"]);
 					break;
 
+				case "SQL_SCHEMA":
+					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
+					Tools.PopText(DataSQL.Schema(Globals.SqlConnectionString));
+					break;
+
+				case "SQL_ANSI":
+					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
+					Tools.PopText(DataSQL.SchemaANSI(Globals.SqlConnectionString));
+					break;
 
 				default:
 					Console.WriteLine($" !!! access-linker.exe Unknow command {Globals.Arguments["COMMAND"]}");

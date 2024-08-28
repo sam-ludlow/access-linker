@@ -129,7 +129,7 @@ namespace access_linker
 				{
 					foreach (string tableName in CreateAccessTables(schema, targetConnection))
 					{
-						DataTable table = DataSQL.ExecuteFill(sourceConnection, $"SELECT * FROM [{tableName}]").Tables[0];
+						DataTable table = DataSQL.ExecuteFill(sourceConnection, $"SELECT * FROM [{tableName}]");
 						table.TableName = tableName;
 
 						Console.WriteLine($"{table.TableName} {table.Rows.Count}");
