@@ -37,7 +37,7 @@ Import from SQL server into Access using Microsoft Access 16.0 Object Library (T
 
 ### ACCESS_EXPORT
 Export from Access to SQL Server using Microsoft Access 16.0 Object Library (TransferDatabase acExport). You can optionally provide the ODBC connection string, used from Access to SQL server
-ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_OLEDB", "SERVER_ODBC" });
+
 `access-linker.exe COMMAND=ACCESS_EXPORT FILENAME=<filename.accdb> DATABASE=<database> SERVER_SQL=<sql server> SERVER_ODBC=[odbc server]`
 
 ### ACCESS_INSERT
