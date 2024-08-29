@@ -7,82 +7,54 @@ Link Microsoft Access to SQL Server Backend and other SQL tools.
 - If using connection strings provide them for both SQL & ODBC.
 - DO NOT provide the database in the connection strings, they will be added.
 - You may have problems running & compiling due to problems with office component versions.
-- Some commands like `rename` must be run on the server becuase of data file path names.
 
-## Usage
+## Access Commands
 
-### Link
-`access-linker.exe link FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
+### ACCESS_CREATE
+Create empty Access database.
 
+`access-linker.exe COMMAND=ACCESS_CREATE FILENAME=<filename.accdb>`
+
+### ACCESS_DELETE
+Delete Access database.
+
+`access-linker.exe COMMAND=ACCESS_DELETE FILENAME=<filename.accdb>`
+
+### ACCESS_SCHEMA
+Show Access Schema.
+
+`access-linker.exe COMMAND=ACCESS_SCHEMA FILENAME=<filename.accdb>`
+
+### ACCESS_LINK
 Link Access to SQL server using Microsoft Access 16.0 Object Library (TransferDatabase acLink). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
-### Import
-`access-linker.exe import FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
+`access-linker.exe link COMMAND=ACCESS_LINK FILENAME=<filename.accdb> DATABASE=<database> SERVER_SQL=<sql server> SERVER_ODBC=[odbc server]`
 
+### ACCESS_IMPORT
 Import from SQL server into Access using Microsoft Access 16.0 Object Library (TransferDatabase acImport). You can optionally provide the ODBC connection string, used from Access to SQL server.
 
-### Export
-`access-linker.exe export FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> SERVER_ODBC=[odbc server]`
+`access-linker.exe COMMAND=ACCESS_IMPORT FILENAME=<filename.accdb> DATABASE=<database> SERVER_SQL_=<sql server> SERVER_ODBC=[odbc server]`
 
-Export from Access to SQL Server using Microsoft Access 16.0 Object Library (TransferDatabase acExport). You can optionally provide the ODBC connection string, used from Access to SQL server.
+### ACCESS_EXPORT
+Export from Access to SQL Server using Microsoft Access 16.0 Object Library (TransferDatabase acExport). You can optionally provide the ODBC connection string, used from Access to SQL server
+ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_OLEDB", "SERVER_ODBC" });
+`access-linker.exe COMMAND=ACCESS_EXPORT FILENAME=<filename.accdb> DATABASE=<database> SERVER_SQL=<sql server> SERVER_ODBC=[odbc server]`
 
-### Dump
-`access-linker.exe dump FILENAME=<filename.accdb> DATABASE=<database> SERVER=<sql server> ACCESS_OLEDB=[oledb access]`
+### ACCESS_INSERT
+Insert from SQL to Access using OleDb. You are normally better off using `import`. You can optionally provide the OleDb connection string to Access.
 
-Dump from SQL to Access using OleDb. You are normally better off using `import`. You can optionally provide the OleDb connection string to Access.
+`access-linker.exe COMMAND=ACCESS_INSERT FILENAME=<filename.accdb> DATABASE=<database> SERVER_SQL=<sql server> SERVER_OLEDB=[oledb access]`
 
-### Empty
-`access-linker.exe empty FILENAME=<filename.accdb>`
-
-Create an empty Access database.
-
-### Backup
-`access-linker.exe backup FILENAME=<filename.bak> DATABASE=<database> SERVER=<sql server> WITH=[WITH Options]`
-
-Backup SQL database to `.BAK` file (BACKUP DATABASE).
-
-### Verify
-`access-linker.exe verify FILENAME=<filename.bak> SERVER=<sql server>`
-
-Verify the `.BAK` file (RESTORE VERIFYONLY).
-
-### List
-`access-linker.exe list FILENAME=<filename.bak> SERVER=<sql server>`
-
-List the data files within the `.BAK` file (RESTORE FILELISTONLY), will pop up in notepad.
-
-### Restore
-`access-linker.exe restore FILENAME=<filename.bak> DATABASE=<database> SERVER=<sql server> WITH=[WITH Options] DIRECTORY=[.MDF directory] LOG_DIRECTORY=[.LDF directory]`
-
-Restore SQL databae from `.BAK` file (RESTORE DATABASE). You can optionally provide the server data file directories.
-
-### Rename
-`access-linker.exe rename DATABASE=<database> NEW_DATABASE=<database> SERVER=<sql server> DIRECTORY=[.MDF directory] LOG_DIRECTORY=[.LDF directory]`
-
-Rename SQL database including logical and physical data & log files (`.MDF` & `.LDF`). You can optionally provide the server data file directory.
-
-### Create
-`access-linker.exe create <database> <sql server>`
-
-Create a new SQL database.
-
-### Delete
+## SQL Commands
 
 
 
+## Other Commands
 
-
-### Shrink
-
-### Schema
-`access-linker.exe schema <database> <sql server>`
-
-Get database schema (INFORMATION_SCHEMA) will pop up in notepad, tab delimited text.
-
-### Encode
-`access-linker.exe encode <filename>`
-
+### ENCODE
 Encode file into GZ compresses base64 text will pop up in notepad. Used to include an empty MS Access database in the source code.
+
+`access-linker.exe COMMAND=ENCODE FILENAME=<filename>`
 
 ## Connection Strings
 If you are using trusted connections to SQL Server you can simpily pass the server name and don't need connection strings.
