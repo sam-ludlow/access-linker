@@ -170,117 +170,7 @@ namespace access_linker
 				return ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
 		}
 
-
-
-
-
-		//public static void Backup(Dictionary<string, string> arguments)
-		//{
-		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
-
-		//	string filename = arguments["FILENAME"];
-		//	string databaseName = arguments["DATABASE"];
-		//	string connectionString = arguments["SERVER"];
-		//	string with = arguments["WITH"];
-
-		//	connectionString = MakeConnectionStringSQL(connectionString, null);
-
-		//	Backup(filename, connectionString, databaseName, with);
-		//}
-
-		//public static void Verify(Dictionary<string, string> arguments)
-		//{
-		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
-
-		//	string filename = arguments["FILENAME"];
-		//	string connectionString = arguments["SERVER"];
-
-		//	connectionString = MakeConnectionStringSQL(connectionString, null);
-
-		//	BackupVerify(filename, connectionString);
-		//}
-
-		//public static void List(Dictionary<string, string> arguments)
-		//{
-		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
-
-		//	string filename = arguments["FILENAME"];
-		//	string connectionString = arguments["SERVER"];
-
-		//	connectionString = MakeConnectionStringSQL(connectionString, null);
-
-		//	BackupFileList(filename, connectionString);
-		//}
-
-		public static void Restore(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
-
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string with = arguments["WITH"];
-
-			string directoryMDF = arguments["DIRECTORY"];
-			string directoryLDF = arguments["LOG_DIRECTORY"];
-
-			if (directoryLDF == null)
-				directoryLDF = directoryMDF;
-
-			connectionString = MakeConnectionStringSQL(connectionString, null);
-
-			Restore(filename, connectionString, databaseName, with, directoryMDF, directoryLDF);
-		}
-
-		public static void Rename(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
-
-			string databaseName = arguments["DATABASE"];
-			string newDatabaseName = arguments["NEW_DATABASE"];
-			string connectionString = arguments["SERVER"];
-
-			string directoryMDF = arguments["DIRECTORY"];
-			string directoryLDF = arguments["LOG_DIRECTORY"];
-
-			if (directoryLDF == null)
-				directoryLDF = directoryMDF;
-
-			connectionString = MakeConnectionStringSQL(connectionString, null);
-
-			Rename(connectionString, databaseName, newDatabaseName, directoryMDF, directoryLDF);
-		}
-
-		public static void Create(Dictionary<string, string> arguments)
-		{
-			Tools.RequiredArguments(arguments, new string[] { "DATABASE", "SERVER" });
-
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-
-			string directoryMDF = arguments["DIRECTORY"];
-			string directoryLDF = arguments["LOG_DIRECTORY"];
-
-			if (directoryLDF == null)
-				directoryLDF = directoryMDF;
-
-			connectionString = MakeConnectionStringSQL(connectionString, null);
-
-			Create(connectionString, databaseName, directoryMDF, directoryLDF);
-		}
-
-		public static string MakeConnectionStringSQL(string server, string database)
-		{
-			if (server.Contains(";") == false)
-				server = $"Data Source='{server}';Integrated Security=True;TrustServerCertificate=True;";
-
-			if (database != null)
-				server += $"Initial Catalog='{database}';";
-
-			return server;
-		}
-
-		public static void Restore(string filename, string connectionString, string database, string with, string directoryMDF, string directoryLDF)
+		public static void Restore(string filename, string connectionString, string database, string directoryMDF, string directoryLDF, string with)
 		{
 			using (SqlConnection serverConnection = new SqlConnection(connectionString))
 			{
@@ -337,17 +227,11 @@ namespace access_linker
 
 				if (logBackupLogicalName.ToLower() != logLogicalName.ToLower())
 					ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{database}] MODIFY FILE(NAME= '{logBackupLogicalName}', NEWNAME= '{logLogicalName}')");
-
-				//using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, database)))
-				//{
-				//	Console.Write($"Shrinking LDF {logPhysicalName} ...");
-				//	ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY SIMPLE");
-				//	ExecuteNonQuery(databaseConnection, $"DBCC SHRINKFILE ({logLogicalName}, 1)");
-				//	ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{database}] SET RECOVERY FULL");
-				//	Console.WriteLine("...done");
-				//}
 			}
 		}
+
+
+
 
 
 
@@ -365,7 +249,7 @@ namespace access_linker
 				ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseSource}] MODIFY NAME = [{databaseTarget}]");
 				ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET MULTI_USER WITH ROLLBACK IMMEDIATE;");
 
-				using (SqlConnection databaseConnection = new SqlConnection(MakeConnectionStringSQL(connectionString, databaseTarget)))
+				using (SqlConnection databaseConnection = new SqlConnection())	// MakeConnectionStringSQL(connectionString, databaseTarget)))
 				{
 					DataTable filesTable = ExecuteFill(databaseConnection, "SELECT * FROM sys.database_files");
 

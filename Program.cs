@@ -32,14 +32,17 @@ namespace access_linker
 
 			string command = Globals.Arguments["COMMAND"].ToUpper();
 
-			if (Globals.Arguments.ContainsKey("DATABASE") == true && Globals.Arguments.ContainsKey("SERVER_SQL") == true)
+			if (Globals.Arguments.ContainsKey("SERVER_SQL") == true)
 			{
-				Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], Globals.Arguments["DATABASE"]);
+				string database = Globals.Arguments.ContainsKey("DATABASE") == true ? Globals.Arguments["DATABASE"] : null;
+
+				Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], database);
 
 				if (Globals.Arguments.ContainsKey("SERVER_ODBC") == false)
 					Globals.Arguments["SERVER_ODBC"] = Globals.Arguments["SERVER_SQL"];
 
-				Globals.OdbcConnectionString = MakeConnectionStringODBC(Globals.Arguments["SERVER_ODBC"], Globals.Arguments["DATABASE"]);
+				Globals.OdbcConnectionString = MakeConnectionStringODBC(Globals.Arguments["SERVER_ODBC"], database);
+
 			}
 
 			if (Globals.Arguments.ContainsKey("FILENAME") == true)
@@ -49,6 +52,13 @@ namespace access_linker
 
 				Globals.OleDbConnectionString = MakeConnectionStringOLEDB(Globals.Arguments["SERVER_OLEDB"]);
 			}
+
+			string dataDirectory = Globals.Arguments.ContainsKey("SQL_DATA_DIRECTORY") == true ? Globals.Arguments["SQL_DATA_DIRECTORY"] : null;
+			string logDirectory = Globals.Arguments.ContainsKey("SQL_LOG_DIRECTORY") == true ? Globals.Arguments["SQL_LOG_DIRECTORY"] : null;
+			if (dataDirectory != null && logDirectory == null)
+				logDirectory = dataDirectory;
+			
+			string with = Globals.Arguments.ContainsKey("SQL_WITH") == true ? Globals.Arguments["SQL_WITH"] : null;
 
 			Console.WriteLine($"SqlConnectionString:	{Globals.SqlConnectionString}");
 			Console.WriteLine($"OdbcConnectionString:	{Globals.OdbcConnectionString}");
@@ -107,17 +117,14 @@ namespace access_linker
 
 					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
 
-					string dataDirectory = Globals.Arguments.ContainsKey("SQL_DATA_DIRECTORY") == true ? Globals.Arguments["SQL_DATA_DIRECTORY"] : null;
-					string logDirectory = Globals.Arguments.ContainsKey("SQL_LOG_DIRECTORY") == true ? Globals.Arguments["SQL_LOG_DIRECTORY"] : null;
-					if (dataDirectory != null && logDirectory == null)
-						logDirectory = dataDirectory;
-
 					DataSQL.Create(Globals.SqlConnectionString, Globals.Arguments["DATABASE"], dataDirectory, logDirectory);
 					break;
 
 				case "SQL_DELETE":
 					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
+
 					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+
 					DataSQL.Delete(Globals.SqlConnectionString, Globals.Arguments["DATABASE"]);
 					break;
 
@@ -133,23 +140,26 @@ namespace access_linker
 
 				case "SQL_BACKUP":
 					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL" });
-					string with = Globals.Arguments.ContainsKey("SQL_WITH") == true ? Globals.Arguments["SQL_WITH"] : null;
+
 					DataSQL.Backup(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.Arguments["DATABASE"], with);
 					break;
 
 				case "SQL_BACKUP_VERIFY":
 					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_SQL" });
-					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
 					DataSQL.BackupVerify(Globals.Arguments["FILENAME"], Globals.SqlConnectionString);
 					break;
 
 				case "SQL_BACKUP_LIST":
 					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_SQL" });
-					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
 					Tools.PopText(DataSQL.BackupFileList(Globals.Arguments["FILENAME"], Globals.SqlConnectionString));
 					break;
 
 				case "SQL_RESTORE":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL" });
+
+					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+
+					DataSQL.Restore(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.Arguments["DATABASE"], dataDirectory, logDirectory, with);
 					break;
 
 
