@@ -137,50 +137,80 @@ namespace access_linker
 		}
 
 
-
-
-
-
-
-
-
-		public static void Backup(Dictionary<string, string> arguments)
+		public static void Backup(string filename, string connectionString, string databaseName, string with)
 		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				string commandText = "BACKUP DATABASE @database TO DISK=@disk";
 
-			string filename = arguments["FILENAME"];
-			string databaseName = arguments["DATABASE"];
-			string connectionString = arguments["SERVER"];
-			string with = arguments["WITH"];
+				if (with != null)
+					commandText += $" WITH {with}";
 
-			connectionString = MakeConnectionStringSQL(connectionString, null);
+				using (SqlCommand command = new SqlCommand(commandText, connection))
+				{
+					command.CommandTimeout = 24 * 60 * 60;
 
-			Backup(filename, connectionString, databaseName, with);
+					command.Parameters.AddWithValue("@database", databaseName);
+					command.Parameters.AddWithValue("@disk", filename);
+
+					ExecuteNonQuery(command);
+				}
+			}
 		}
 
-		public static void Verify(Dictionary<string, string> arguments)
+		public static void BackupVerify(string filename, string connectionString)
 		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
-
-			string filename = arguments["FILENAME"];
-			string connectionString = arguments["SERVER"];
-
-			connectionString = MakeConnectionStringSQL(connectionString, null);
-
-			BackupVerify(filename, connectionString);
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
+				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
 		}
 
-		public static void List(Dictionary<string, string> arguments)
+		public static DataTable BackupFileList(string filename, string connectionString)
 		{
-			Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
-
-			string filename = arguments["FILENAME"];
-			string connectionString = arguments["SERVER"];
-
-			connectionString = MakeConnectionStringSQL(connectionString, null);
-
-			BackupFileList(filename, connectionString);
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
+				return ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
 		}
+
+
+
+
+
+		//public static void Backup(Dictionary<string, string> arguments)
+		//{
+		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "DATABASE", "SERVER" });
+
+		//	string filename = arguments["FILENAME"];
+		//	string databaseName = arguments["DATABASE"];
+		//	string connectionString = arguments["SERVER"];
+		//	string with = arguments["WITH"];
+
+		//	connectionString = MakeConnectionStringSQL(connectionString, null);
+
+		//	Backup(filename, connectionString, databaseName, with);
+		//}
+
+		//public static void Verify(Dictionary<string, string> arguments)
+		//{
+		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
+
+		//	string filename = arguments["FILENAME"];
+		//	string connectionString = arguments["SERVER"];
+
+		//	connectionString = MakeConnectionStringSQL(connectionString, null);
+
+		//	BackupVerify(filename, connectionString);
+		//}
+
+		//public static void List(Dictionary<string, string> arguments)
+		//{
+		//	Tools.RequiredArguments(arguments, new string[] { "FILENAME", "SERVER" });
+
+		//	string filename = arguments["FILENAME"];
+		//	string connectionString = arguments["SERVER"];
+
+		//	connectionString = MakeConnectionStringSQL(connectionString, null);
+
+		//	BackupFileList(filename, connectionString);
+		//}
 
 		public static void Restore(Dictionary<string, string> arguments)
 		{
@@ -319,25 +349,7 @@ namespace access_linker
 			}
 		}
 
-		public static void BackupVerify(string filename, string connectionString)
-		{
-			using (SqlConnection serverConnection = new SqlConnection(connectionString))
-			{
-				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
-			}
-		}
 
-		public static void BackupFileList(string filename, string connectionString)
-		{
-			DataTable table;
-
-			using (SqlConnection serverConnection = new SqlConnection(connectionString))
-			{
-				table = ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
-			}
-
-			Tools.PopText(table);
-		}
 
 		public static void Rename(string connectionString, string databaseSource, string databaseTarget, string directoryData, string directoryLogs)
 		{
@@ -413,26 +425,7 @@ namespace access_linker
 		}
 
 
-		public static void Backup(string filename, string connectionString, string databaseName, string with)
-		{
-			using (SqlConnection connection = new SqlConnection(connectionString))
-			{
-				string commandText = "BACKUP DATABASE @database TO DISK=@disk";
 
-				if (with != null)
-					commandText += $" WITH {with}";
-
-				using (SqlCommand command = new SqlCommand(commandText, connection))
-				{
-					command.CommandTimeout = 24 * 60 * 60;
-
-					command.Parameters.AddWithValue("@database", databaseName);
-					command.Parameters.AddWithValue("@disk", filename);
-
-					ExecuteNonQuery(command);
-				}
-			}
-		}
 
 
 

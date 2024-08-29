@@ -117,9 +117,7 @@ namespace access_linker
 
 				case "SQL_DELETE":
 					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
-
 					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
-
 					DataSQL.Delete(Globals.SqlConnectionString, Globals.Arguments["DATABASE"]);
 					break;
 
@@ -131,6 +129,27 @@ namespace access_linker
 				case "SQL_ANSI":
 					ValidateRequiredParameters(new string[] { "DATABASE", "SERVER_SQL" });
 					Tools.PopText(DataSQL.SchemaANSI(Globals.SqlConnectionString));
+					break;
+
+				case "SQL_BACKUP":
+					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL" });
+					string with = Globals.Arguments.ContainsKey("SQL_WITH") == true ? Globals.Arguments["SQL_WITH"] : null;
+					DataSQL.Backup(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.Arguments["DATABASE"], with);
+					break;
+
+				case "SQL_BACKUP_VERIFY":
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_SQL" });
+					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+					DataSQL.BackupVerify(Globals.Arguments["FILENAME"], Globals.SqlConnectionString);
+					break;
+
+				case "SQL_BACKUP_LIST":
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_SQL" });
+					Globals.SqlConnectionString = MakeConnectionStringSQL(Globals.Arguments["SERVER_SQL"], null);
+					Tools.PopText(DataSQL.BackupFileList(Globals.Arguments["FILENAME"], Globals.SqlConnectionString));
+					break;
+
+				case "SQL_RESTORE":
 					break;
 
 
