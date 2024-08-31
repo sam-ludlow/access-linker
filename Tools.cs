@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -10,6 +11,56 @@ namespace access_linker
 {
 	public class Tools
 	{
+
+		public static string[] TableNameList(DbConnection connection)
+		{
+			DataSet dataSet = SchemaConnection(connection);
+
+			List<string> list = new List<string>();
+
+			foreach (DataRow row in dataSet.Tables["Tables"].Select($"TABLE_TYPE = 'TABLE'"))
+				list.Add((string)row["TABLE_NAME"]);
+
+
+			list.Sort();
+
+			return list.ToArray();
+		}
+
+		public static DataSet SchemaConnection(DbConnection connection)
+		{
+			DataSet dataSet = new DataSet();
+
+			connection.Open();
+
+			try
+			{
+				List<string> collectionNames = new List<string>();
+				foreach (DataRow row in connection.GetSchema().Rows)
+					collectionNames.Add((string)row["CollectionName"]);
+				collectionNames.Sort();
+
+				Console.WriteLine(String.Join(Environment.NewLine, collectionNames.ToArray()));
+
+				foreach (string collectionName in collectionNames)
+				{
+					//	The ODBC managed provider requires that the TABLE_NAME restriction be specified and non-null for the GetSchema indexes collection.
+					if (collectionName == "Indexes")
+						continue;
+
+					DataTable table = connection.GetSchema(collectionName);
+					table.TableName = collectionName;
+					dataSet.Tables.Add(table);
+				}
+			}
+			finally
+			{
+				connection.Close();
+			}
+
+			return dataSet;
+		}
+
 		public static void RequiredArguments(Dictionary<string, string> arguments, string[] requireds)
 		{
 			bool miss = false;

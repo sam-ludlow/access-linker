@@ -74,6 +74,12 @@ namespace access_linker
 					break;
 
 
+				case "ODBC_SCHEMA":
+					ValidateRequiredParameters(new string[] { "SERVER_ODBC" });
+					Tools.PopText(MsAccess.SchemaODBC(Globals.Arguments["SERVER_ODBC"]));
+					break;
+
+
 
 				case "ACCESS_CREATE":
 					ValidateRequiredParameters(new string[] { "FILENAME" });
@@ -87,21 +93,21 @@ namespace access_linker
 				
 				case "ACCESS_SCHEMA":
 					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_OLEDB" });
-					Tools.PopText(MsAccess.Schema(Globals.OleDbConnectionString));
+					Tools.PopText(MsAccess.SchemaODBC(Globals.OleDbConnectionString));
 					break;
 
 				case "ACCESS_LINK":
-					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
-					MsAccess.Link(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.OdbcConnectionString);
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_ODBC" });
+					MsAccess.Link(Globals.Arguments["FILENAME"], Globals.Arguments["SERVER_ODBC"]);
 					break;
 
 				case "ACCESS_IMPORT":
-					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_SQL", "SERVER_ODBC" });
-					MsAccess.Import(Globals.Arguments["FILENAME"], Globals.SqlConnectionString, Globals.OdbcConnectionString);
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_ODBC" });
+					MsAccess.Import(Globals.Arguments["FILENAME"], Globals.OdbcConnectionString);
 					break;
 
 				case "ACCESS_EXPORT":
-					ValidateRequiredParameters(new string[] { "FILENAME", "DATABASE", "SERVER_OLEDB", "SERVER_ODBC" });
+					ValidateRequiredParameters(new string[] { "FILENAME", "SERVER_ODBC", "SERVER_OLEDB" });
 					MsAccess.Export(Globals.Arguments["FILENAME"], Globals.OleDbConnectionString, Globals.OdbcConnectionString);
 					break;
 

@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
+using System.Data.Odbc;
 using System.Data.SqlClient;
 using System.Data;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 using Microsoft.Office.Interop.Access;  // COM: Microsoft Access 16.0 Object Library
 
@@ -34,29 +34,37 @@ namespace access_linker
 			File.Delete(filename);
 		}
 
-		public static void Link(string filename, string sqlConnectionString, string odbcConnectionString)
+		public static void Link(string filename, string odbcConnectionString)
 		{
-			string[] tableNames = DataSQL.ListDatabaseTables(sqlConnectionString);
+			string[] tableNames;
+			using (var connection = new OdbcConnection(odbcConnectionString))
+				tableNames = Tools.TableNameList(connection);
 
 			TransferDatabase(filename, "acLink", tableNames, odbcConnectionString);
 		}
 
-		public static void Import(string filename, string sqlConnectionString, string odbcConnectionString)
+		public static void Import(string filename, string odbcConnectionString)
 		{
-			string[] tableNames = DataSQL.ListDatabaseTables(sqlConnectionString);
+			string[] tableNames;
+			using (var connection = new OdbcConnection(odbcConnectionString))
+				tableNames = Tools.TableNameList(connection);
 
 			TransferDatabase(filename, "acImport", tableNames, odbcConnectionString);
 		}
 
-		public static void Export(string filename, string oledbConnectionString, string odbcConnectionString)
+		public static void Export(string filename, string odbcConnectionString, string oledbConnectionString)
 		{
-			string[] tableNames = ListAccessTables(oledbConnectionString);
+			string[] tableNames;
+			using (var connection = new OdbcConnection(odbcConnectionString))
+				tableNames = Tools.TableNameList(connection);
 
 			TransferDatabase(filename, "acExport", tableNames, odbcConnectionString);
 		}
 
 		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
 		{
+			connectionStringODBC = "ODBC;" + connectionStringODBC;
+
 			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
 
 			Application application = new Application();
@@ -71,7 +79,7 @@ namespace access_linker
 					{
 						Console.Write(tableName);
 
-						string sourceTableName = type == "acExport" ? tableName : $"dbo.{tableName}";
+						string sourceTableName = tableName;	// = type == "acExport" ? tableName : $"dbo.{tableName}";
 
 						application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, true);
 
@@ -140,34 +148,16 @@ namespace access_linker
 			}
 		}
 
-		public static DataSet Schema(string oledbConnectionString)
+		public static DataSet SchemaOLEDB(string connectionString)
 		{
-			DataSet dataSet = new DataSet();
+			using (var connection = new OleDbConnection(connectionString))
+				return Tools.SchemaConnection(connection);
+		}
 
-			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
-			{
-				connection.Open();
-				try
-				{
-					List<string> collectionNames = new List<string>();
-					foreach (DataRow row in connection.GetSchema().Rows)
-						collectionNames.Add((string)row["CollectionName"]);
-					collectionNames.Sort();
-
-					foreach (string collectionName in collectionNames)
-					{
-						DataTable table = connection.GetSchema(collectionName);
-						table.TableName = collectionName;
-						dataSet.Tables.Add(table);
-					}
-				}
-				finally
-				{
-					connection.Close();
-				}
-			}
-
-			return dataSet;
+		public static DataSet SchemaODBC(string connectionString)
+		{
+			using (var connection = new OdbcConnection(connectionString))
+				return Tools.SchemaConnection(connection);
 		}
 
 		public static string[] CreateAccessTables(DataSet schema, OleDbConnection connection)
@@ -322,6 +312,8 @@ namespace access_linker
 				ExecuteNonQuery(connection, commandText);
 			}
 		}
+
+
 
 		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)
 		{

@@ -57,24 +57,46 @@ Encode file into GZ compresses base64 text will pop up in notepad. Used to inclu
 `access-linker.exe COMMAND=ENCODE FILENAME=<filename>`
 
 ## Connection Strings
-If you are using trusted connections to SQL Server you can simpily pass the server name and don't need connection strings.
-
-If you are using credentials or have some other issue like ODBC versions or somthing.
 
 ### SQL
 
+Windows Authentication. 
 ```
-"Server=MY_SERVER;User Id='MY_USER';Password='MY_PASS';"
-```
-
-### ODBC
-
-```
-"ODBC;Driver={ODBC Driver 17 for SQL Server};SERVER=MY_SERVER;UID='MY_USER';PWD='MY_PASS';"
+"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;Integrated Security=True;TrustServerCertificate=True;"
 ```
 
-### OLEDB
+SQL Authentication (username & password)
+```
+"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;User Id='MY-USER';Password='MY-PASS';TrustServerCertificate=True;"
+```
+
+### ODBC (SQL Server)
+
+https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+
+Windows Authentication. 
+```
+Driver={ODBC Driver 18 for SQL Server};SERVER=MY-SERVER;DATABASE=MY-DATABASE;Trusted_Connection=Yes;TrustServerCertificate=Yes;
+```
+
+SQL Authentication (username & password)
+```
+Driver={ODBC Driver 18 for SQL Server};SERVER=MY-SERVER;DATABASE=MY-DATABASE;UID=api;PWD=api;TrustServerCertificate=Yes;
+```
+
+### ODBC (SQLite)
+
+http://www.ch-werner.de/sqliteodbc/
 
 ```
-"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';"
+DRIVER={SQLite3 ODBC Driver};DATABASE=SQLITE-FILENAME;
+```
+
+### OLE DB
+
+OLD DB Providers are part of the Office Installation. You can list them with the Power Shell command `(New-Object system.data.oledb.oledbenumerator).GetElements()`.
+
+Access
+```
+"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';Data Source=ACCESS-FILENAME;"
 ```
