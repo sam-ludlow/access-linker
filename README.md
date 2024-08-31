@@ -106,3 +106,8 @@ MS Access
 ```
 "Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';Data Source=ACCESS-FILENAME;"
 ```
+
+access-linker will automatically append the Access System Database to the connection string. You have to run Access for the first time to create this file.
+```
+Jet OLEDB:System Database='C:\Users\Sam\AppData\Roaming\Microsoft\Access\System.mdw';
+```
