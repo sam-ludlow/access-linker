@@ -71,6 +71,7 @@ SQL Authentication (username & password)
 ```
 
 ### ODBC (SQL Server)
+MS Access uses ODBC to connect to SQL Server. You need to install dirvers. If you have installed SSMS you will already have them (just watch out for version numbers 17/18). You can list them with the Power Shell command `Get-OdbcDriver`.
 
 https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
 
@@ -85,6 +86,7 @@ Driver={ODBC Driver 18 for SQL Server};SERVER=MY-SERVER;DATABASE=MY-DATABASE;UID
 ```
 
 ### ODBC (SQLite)
+MS Access uses ODBC to connect to SQLite. You need to install dirvers. You can list them with the Power Shell command `Get-OdbcDriver`.
 
 http://www.ch-werner.de/sqliteodbc/
 
@@ -94,9 +96,13 @@ DRIVER={SQLite3 ODBC Driver};DATABASE=SQLITE-FILENAME;
 
 ### OLE DB
 
-OLD DB Providers are part of the Office Installation. You can list them with the Power Shell command `(New-Object system.data.oledb.oledbenumerator).GetElements()`.
+OLE DB Providers are part of the Office Installation. You can list them with the Power Shell command `(New-Object system.data.oledb.oledbenumerator).GetElements()`.
 
-Access
+If you don't have Office installed or using OLE DB on the server to connect to MS Access you should use the Access 365 Runtime
+
+https://support.microsoft.com/en-gb/office/download-and-install-microsoft-365-access-runtime-185c5a32-8ba9-491e-ac76-91cbe3ea09c9
+
+MS Access
 ```
 "Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';Data Source=ACCESS-FILENAME;"
 ```
