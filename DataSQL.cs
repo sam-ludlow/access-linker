@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Data;
+using System.Data.Common;
 
 namespace access_linker
 {
@@ -60,81 +61,82 @@ namespace access_linker
 			}
 		}
 
-		public static DataSet Schema(string sqlConnectionString)
-		{
-			DataSet dataSet = new DataSet();
+		//public static DataSet Schema(string sqlConnectionString)
+		//{
+		//	DataSet dataSet = new DataSet();
 
-			using (SqlConnection connection = new SqlConnection(sqlConnectionString))
-			{
-				connection.Open();
-				try
-				{
-					List<string> collectionNames = new List<string>();
-					foreach (DataRow row in connection.GetSchema().Rows)
-						collectionNames.Add((string)row["CollectionName"]);
-					collectionNames.Sort();
+		//	using (SqlConnection connection = new SqlConnection(sqlConnectionString))
+		//	{
+		//		connection.Open();
+		//		try
+		//		{
+		//			List<string> collectionNames = new List<string>();
+		//			foreach (DataRow row in connection.GetSchema().Rows)
+		//				collectionNames.Add((string)row["CollectionName"]);
+		//			collectionNames.Sort();
 
-					foreach (string collectionName in collectionNames)
-					{
-						DataTable table = connection.GetSchema(collectionName);
-						table.TableName = collectionName;
-						dataSet.Tables.Add(table);
-					}
-				}
-				finally
-				{
-					connection.Close();
-				}
-			}
+		//			foreach (string collectionName in collectionNames)
+		//			{
+		//				DataTable table = connection.GetSchema(collectionName);
+		//				table.TableName = collectionName;
+		//				dataSet.Tables.Add(table);
+		//			}
+		//		}
+		//		finally
+		//		{
+		//			connection.Close();
+		//		}
+		//	}
 
-			return dataSet;
-		}
+		//	return dataSet;
+		//}
 
-		public static DataSet SchemaANSI(string sqlConnectionString)
-		{
-			using (SqlConnection connection = new SqlConnection(sqlConnectionString))
-				return GetInformationSchemas(connection);
-		}
+		//public static DataSet SchemaANSI(string sqlConnectionString)
+		//{
+		//	using (SqlConnection connection = new SqlConnection(sqlConnectionString))
+		//		return GetInformationSchemas(connection);
+		//}
 
-		public static DataSet GetInformationSchemas(SqlConnection connection)
-		{
-			string[] informationSchemaNames = {
-				"CHECK_CONSTRAINTS",
-				"COLUMN_DOMAIN_USAGE",
-				"COLUMN_PRIVILEGES",
-				"COLUMNS",
-				"CONSTRAINT_COLUMN_USAGE",
-				"CONSTRAINT_TABLE_USAGE",
-				"DOMAIN_CONSTRAINTS",
-				"DOMAINS",
-				"KEY_COLUMN_USAGE",
-				"PARAMETERS",
-				"REFERENTIAL_CONSTRAINTS",
-				"ROUTINE_COLUMNS",
-				"ROUTINES",
-				"SCHEMATA",
-				"TABLE_CONSTRAINTS",
-				"TABLE_PRIVILEGES",
-				"TABLES",
-				"VIEW_COLUMN_USAGE",
-				"VIEW_TABLE_USAGE",
-				"VIEWS",
-			};
+		//public static DataSet GetInformationSchemas(DbConnection connection)
+		//{
+		//	string[] informationSchemaNames = {
+		//		"CHECK_CONSTRAINTS",
+		//		"COLUMN_DOMAIN_USAGE",
+		//		"COLUMN_PRIVILEGES",
+		//		"COLUMNS",
+		//		"CONSTRAINT_COLUMN_USAGE",
+		//		"CONSTRAINT_TABLE_USAGE",
+		//		"DOMAIN_CONSTRAINTS",
+		//		"DOMAINS",
+		//		"KEY_COLUMN_USAGE",
+		//		"PARAMETERS",
+		//		"REFERENTIAL_CONSTRAINTS",
+		//		"ROUTINE_COLUMNS",
+		//		"ROUTINES",
+		//		"SCHEMATA",
+		//		"TABLE_CONSTRAINTS",
+		//		"TABLE_PRIVILEGES",
+		//		"TABLES",
+		//		"VIEW_COLUMN_USAGE",
+		//		"VIEW_TABLE_USAGE",
+		//		"VIEWS",
+		//	};
 
-			DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
+		//	DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
 
-			foreach (string name in informationSchemaNames)
-			{
-				using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
-				{
-					DataTable table = new DataTable(name);
-					adapter.Fill(table);
-					dataSet.Tables.Add(table);
-				}
-			}
+		//	foreach (string name in informationSchemaNames)
+		//	{
+		//		using (DbDataAdapter)
+		//		using (DbDataAdapter adapter = new DbDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
+		//		{
+		//			DataTable table = new DataTable(name);
+		//			adapter.Fill(table);
+		//			dataSet.Tables.Add(table);
+		//		}
+		//	}
 
-			return dataSet;
-		}
+		//	return dataSet;
+		//}
 
 
 		public static void Backup(string filename, string connectionString, string databaseName, string with)

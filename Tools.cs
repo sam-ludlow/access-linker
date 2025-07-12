@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Data.OleDb;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 
 namespace access_linker
@@ -12,20 +14,61 @@ namespace access_linker
 	public class Tools
 	{
 
+		public static string MakeConnectionStringOLEDB(string accessFilename)
+		{
+			if (accessFilename.Contains(";") == false)
+				accessFilename = $"Provider='Microsoft.ACE.OLEDB.16.0';User ID='Admin';Password='';Data Source='{accessFilename}';";
+
+			string systemDatabaseFilename = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Access", "System.mdw");
+
+			if (File.Exists(systemDatabaseFilename) == false)
+				throw new ApplicationException($"Microsoft Access System database missing: '{systemDatabaseFilename}'.");
+
+			accessFilename += $"Jet OLEDB:System Database='{systemDatabaseFilename}';";
+
+			Console.WriteLine($"OLEDB:\t{accessFilename}");
+
+			return accessFilename;
+		}
+
+		public static string MakeConnectionStringODBC(string connectionString)
+		{
+			if (connectionString.Contains(";") == false)
+			{
+				if (connectionString.Contains("@") == true)
+				{
+					string[] parts = connectionString.Split('@');
+					if (parts.Length != 2)
+						throw new ApplicationException("SQL ODCB Usage: server@database");
+
+					connectionString = $"Driver={{ODBC Driver 18 for SQL Server}};SERVER={parts[0]};DATABASE={parts[1]};Trusted_Connection=Yes;TrustServerCertificate=Yes;";
+				}
+				else
+				{
+					connectionString = $"DRIVER={{SQLite3 ODBC Driver}};DATABASE={connectionString};";
+				}
+			}
+
+			Console.WriteLine($"ODBC:\t{connectionString}");
+
+			return connectionString;
+		}
+
 		public static string[] TableNameList(DbConnection connection)
 		{
-			DataSet dataSet = SchemaConnection(connection);
-
-			List<string> list = new List<string>();
-
-			foreach (DataRow row in dataSet.Tables["Tables"].Select($"TABLE_TYPE = 'TABLE'"))
-				list.Add((string)row["TABLE_NAME"]);
-
-
-			list.Sort();
-
-			return list.ToArray();
+			connection.Open();
+			try
+			{
+				List<string> tableNames = connection.GetSchema("Tables").Rows.Cast<DataRow>().Select(row => (string)row["TABLE_NAME"]).ToList();
+				tableNames.Sort();
+				return tableNames.ToArray();
+			}
+			finally
+			{
+				connection.Close();
+			}
 		}
+
 
 		public static DataSet SchemaConnection(DbConnection connection)
 		{
@@ -35,22 +78,53 @@ namespace access_linker
 
 			try
 			{
-				List<string> collectionNames = new List<string>();
-				foreach (DataRow row in connection.GetSchema().Rows)
-					collectionNames.Add((string)row["CollectionName"]);
-				collectionNames.Sort();
+				List<string> tableNames = connection.GetSchema("Tables").Rows.Cast<DataRow>().Select(row => (string)row["TABLE_NAME"]).ToList();
+				tableNames.Sort();
 
-				Console.WriteLine(String.Join(Environment.NewLine, collectionNames.ToArray()));
+				List<string> collectionNames = new List<string>(connection.GetSchema().Rows.Cast<DataRow>().Select(row => (string)row["CollectionName"]));
+				collectionNames.Sort();
 
 				foreach (string collectionName in collectionNames)
 				{
-					//	The ODBC managed provider requires that the TABLE_NAME restriction be specified and non-null for the GetSchema indexes collection.
-					if (collectionName == "Indexes")
-						continue;
+					DataTable table = null;
 
-					DataTable table = connection.GetSchema(collectionName);
-					table.TableName = collectionName;
-					dataSet.Tables.Add(table);
+					if (collectionName == "Indexes")
+					{
+						string[] restrictions = new string[4];
+						foreach (string tableName in tableNames)
+						{
+							restrictions[2] = tableName;
+
+							DataTable schemaTable;
+							try
+							{
+								schemaTable = connection.GetSchema(collectionName, restrictions);
+							}
+							catch (ArgumentException e)
+							{
+								Console.WriteLine($"GetSchema({collectionName}, {tableName}): {e.Message}");
+								continue;
+							}
+
+							if (table == null)
+							{
+								table = schemaTable;
+							}
+							else
+							{
+								foreach (DataRow row in schemaTable.Rows)
+									table.ImportRow(row);
+							}
+						}
+						table.TableName = collectionName;
+						dataSet.Tables.Add(table);
+					}
+					else
+					{
+						table = connection.GetSchema(collectionName);
+						table.TableName = collectionName;
+						dataSet.Tables.Add(table);
+					}
 				}
 			}
 			finally
@@ -61,16 +135,34 @@ namespace access_linker
 			return dataSet;
 		}
 
-		public static void RequiredArguments(Dictionary<string, string> arguments, string[] requireds)
+		public static int ExecuteNonQuery(OleDbConnection connection, string commandText)
 		{
-			bool miss = false;
-			foreach (string required in requireds)
-				if (arguments.ContainsKey(required) == false)
-					miss = true;
-
-			if (requireds.Length == 0 || miss == true)
-				throw new ApplicationException("!!! USAGE !!!");
+			connection.Open();
+			try
+			{
+				using (OleDbCommand command = new OleDbCommand(commandText, connection))
+					return command.ExecuteNonQuery();
+			}
+			finally
+			{
+				connection.Close();
+			}
 		}
+		public static object ExecuteScalar(OleDbConnection connection, string commandText)
+		{
+			connection.Open();
+			try
+			{
+				using (OleDbCommand command = new OleDbCommand(commandText, connection))
+					return command.ExecuteScalar();
+			}
+			finally
+			{
+				connection.Close();
+			}
+		}
+
+
 
 		public static string TextTable(DataTable table)
 		{
@@ -161,7 +253,6 @@ namespace access_linker
 			string filename = Path.GetTempFileName();
 			File.WriteAllText(filename, text, Encoding.UTF8);
 			Process.Start("notepad.exe", filename);
-			Environment.Exit(0);
 		}
 	}
 

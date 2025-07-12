@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Data.OleDb;
 using System.Data.Odbc;
-using System.Data.SqlClient;
 using System.Data;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
 
 using Microsoft.Office.Interop.Access;  // COM: Microsoft Access 16.0 Object Library
@@ -15,6 +13,17 @@ namespace access_linker
 {
 	public class MsAccess
 	{
+		public static void Delete(string filename)
+		{
+			if (Path.GetExtension(filename).ToLower() != ".accdb")
+				throw new ApplicationException($"Filename extention is not access (.accdb): {filename}");
+
+			string lockFilename = filename.Substring(0, filename.Length - 6) + ".laccdb";
+
+			File.Delete(lockFilename);
+			File.Delete(filename);
+		}
+
 		public static void Create(string filename)
 		{
 			using (MemoryStream compressedStream = new MemoryStream(Convert.FromBase64String(EMPTY_accdb_gz_base64)))
@@ -29,9 +38,12 @@ namespace access_linker
 			}
 		}
 
-		public static void Delete(string filename)
+		public static void Schema(string filename)
 		{
-			File.Delete(filename);
+			DataSet schema;
+			using (OleDbConnection connection = new OleDbConnection(Tools.MakeConnectionStringOLEDB(filename)))
+				schema = Tools.SchemaConnection(connection);
+			Tools.PopText(schema);
 		}
 
 		public static void Link(string filename, string odbcConnectionString)
@@ -52,19 +64,17 @@ namespace access_linker
 			TransferDatabase(filename, "acImport", tableNames, odbcConnectionString);
 		}
 
-		public static void Export(string filename, string odbcConnectionString, string oledbConnectionString)
+		public static void Export(string filename, string odbcConnectionString)
 		{
 			string[] tableNames;
-			using (var connection = new OdbcConnection(odbcConnectionString))
+			using (var connection = new OleDbConnection(Tools.MakeConnectionStringOLEDB(filename)))
 				tableNames = Tools.TableNameList(connection);
 
 			TransferDatabase(filename, "acExport", tableNames, odbcConnectionString);
 		}
 
-		public static void TransferDatabase(string filename, string type, string[] tableNames, string connectionStringODBC)
+		public static void TransferDatabase(string filename, string type, string[] tableNames, string odbcConnectionString)
 		{
-			connectionStringODBC = "ODBC;" + connectionStringODBC;
-
 			AcDataTransferType transferType = (AcDataTransferType)Enum.Parse(typeof(AcDataTransferType), type);
 
 			Application application = new Application();
@@ -79,9 +89,9 @@ namespace access_linker
 					{
 						Console.Write(tableName);
 
-						string sourceTableName = tableName;	// = type == "acExport" ? tableName : $"dbo.{tableName}";
+						string sourceTableName = tableName; // = type == "acExport" ? tableName : $"dbo.{tableName}";
 
-						application.DoCmd.TransferDatabase(transferType, "ODBC Database", connectionStringODBC, AcObjectType.acTable, sourceTableName, tableName, false, true);
+						application.DoCmd.TransferDatabase(transferType, "ODBC Database", $"ODBC;{odbcConnectionString}", AcObjectType.acTable, sourceTableName, tableName, false, true);
 
 						Console.WriteLine(".");
 					}
@@ -97,47 +107,24 @@ namespace access_linker
 			}
 		}
 
-		public static string[] ListAccessTables(string oledbConnectionString)
+		public static void Insert(string filename, string odbcConnectionString)
 		{
-			DataTable schemaTables;
+			//	TODO: SQL Server direct (not ODBC)
 
-			using (OleDbConnection connection = new OleDbConnection(oledbConnectionString))
+			using (var sourceConnection = new OdbcConnection(odbcConnectionString))
 			{
-				connection.Open();
-				try
-				{
-					schemaTables = connection.GetSchema("Tables");
-				}
-				finally
-				{
-					connection.Close();
-				}
-			}
+				string[] tableNames = Tools.TableNameList(sourceConnection);
 
-			List<string> result = new List<string>();
-			foreach (DataRow row in schemaTables.Rows)
-			{
-				if ((string)row["TABLE_TYPE"] != "TABLE")
-					continue;
+				DataSet schema = Tools.SchemaConnection(sourceConnection);
 
-				result.Add((string)row["TABLE_NAME"]);
-			}
-			result.Sort();
-
-			return result.ToArray();
-		}
-
-		public static void Insert(string sqlConnectionString, string oledbConnectionString)
-		{
-			using (var sourceConnection = new SqlConnection(sqlConnectionString))
-			{
-				DataSet schema = DataSQL.GetInformationSchemas(sourceConnection);
-
-				using (var targetConnection = new OleDbConnection(oledbConnectionString))
+				using (var targetConnection = new OleDbConnection(Tools.MakeConnectionStringOLEDB(filename)))
 				{
 					foreach (string tableName in CreateAccessTables(schema, targetConnection))
 					{
-						DataTable table = DataSQL.ExecuteFill(sourceConnection, $"SELECT * FROM [{tableName}]");
+						DataTable table = new DataTable();
+						using (OdbcDataAdapter adapter = new OdbcDataAdapter($"SELECT * FROM [{tableName}]", sourceConnection))
+							adapter.Fill(table);
+
 						table.TableName = tableName;
 
 						Console.WriteLine($"{table.TableName} {table.Rows.Count}");
@@ -148,23 +135,13 @@ namespace access_linker
 			}
 		}
 
-		public static DataSet SchemaOLEDB(string connectionString)
-		{
-			using (var connection = new OleDbConnection(connectionString))
-				return Tools.SchemaConnection(connection);
-		}
-
-		public static DataSet SchemaODBC(string connectionString)
-		{
-			using (var connection = new OdbcConnection(connectionString))
-				return Tools.SchemaConnection(connection);
-		}
-
 		public static string[] CreateAccessTables(DataSet schema, OleDbConnection connection)
 		{
 			List<string> ignoreTableNames = new List<string>(new string[] {
-				"sysdiagrams",
-			});
+					"sysdiagrams",
+					"trace_xe_action_map",
+					"trace_xe_event_map",
+				});
 
 			List<string> tableNames = new List<string>();
 
@@ -182,22 +159,24 @@ namespace access_linker
 				foreach (DataRow columnRow in schema.Tables["COLUMNS"].Select($"TABLE_NAME = '{TABLE_NAME}'", "ORDINAL_POSITION"))
 				{
 					var COLUMN_NAME = (string)columnRow["COLUMN_NAME"];
-					var IS_NULLABLE = (string)columnRow["IS_NULLABLE"];
-					var DATA_TYPE = (string)columnRow["DATA_TYPE"];
-					int CHARACTER_MAXIMUM_LENGTH = columnRow.IsNull("CHARACTER_MAXIMUM_LENGTH") == true ? 0 : (int)columnRow["CHARACTER_MAXIMUM_LENGTH"];
+					var NULLABLE = (short)columnRow["NULLABLE"];
+					var TYPE_NAME = (string)columnRow["TYPE_NAME"];
+					var COLUMN_SIZE = (int)columnRow["COLUMN_SIZE"];
 
 					string dataType;
 
-					switch (DATA_TYPE)
+					switch (TYPE_NAME)
 					{
 						case "char":
+						case "nchar":
 						case "varchar":
 						case "nvarchar":
-							dataType = "VARCHAR";
-							if (CHARACTER_MAXIMUM_LENGTH == -1 || CHARACTER_MAXIMUM_LENGTH > 255)
+						case "TEXT":
+							dataType = $"VARCHAR({COLUMN_SIZE})";
+							if (COLUMN_SIZE == 0 || COLUMN_SIZE > 255)
 								dataType = "LONGTEXT";
 
-							IS_NULLABLE = "YES"; // Access don't seem to like empty strings
+							NULLABLE = 1; // Access don't seem to like empty strings
 							break;
 
 						case "bit":
@@ -209,6 +188,7 @@ namespace access_linker
 							break;
 
 						case "bigint":
+						case "INTEGER":
 							dataType = "BIGINT";
 							break;
 
@@ -221,35 +201,32 @@ namespace access_linker
 							break;
 
 						default:
-							throw new ApplicationException($"Unknown datatype {DATA_TYPE}");
+							throw new ApplicationException($"Unknown data type TYPE_NAME: {TYPE_NAME}");
 
 					}
 
-					string nullable = IS_NULLABLE == "YES" ? "NULL" : "NOT NULL";
+					string nullable = NULLABLE == 1 ? "NULL" : "NOT NULL";
 
 					columnDefs.Add($"[{COLUMN_NAME}] {dataType} {nullable}");
 				}
 
-				string CONSTRAINT_NAME = schema.Tables["TABLE_CONSTRAINTS"]
-					.Select($"TABLE_NAME = '{TABLE_NAME}' AND CONSTRAINT_TYPE = 'PRIMARY KEY'")
-					.Select(row => (string)row["CONSTRAINT_NAME"])
-					.Single();
+				string INDEX_NAME = null;
+				List<string> keyColumnNames = new List<string>();
 
-				string[] keyColumnNames = schema.Tables["KEY_COLUMN_USAGE"]
-					.Select($"TABLE_NAME = '{TABLE_NAME}' AND CONSTRAINT_NAME = '{CONSTRAINT_NAME}'", "ORDINAL_POSITION")
-					.Select(row => (string)row["COLUMN_NAME"])
-					.ToArray();
+				foreach (DataRow indexRow in schema.Tables["INDEXES"].Select($"[TABLE_NAME] = '{TABLE_NAME}' AND [INDEX_NAME] LIKE 'PK_%'", "ORDINAL_POSITION")) //	 AND [TYPE] = 1 or 3 ?
+				{
+					INDEX_NAME = (string)indexRow["INDEX_NAME"];
+					keyColumnNames.Add((string)indexRow["COLUMN_NAME"]);
+				}
 
-				if (keyColumnNames.Length == 0)
-					throw new ApplicationException($"Did not find key {CONSTRAINT_NAME}");
-
-				columnDefs.Add($"CONSTRAINT [PrimaryKey] PRIMARY KEY ({String.Join(", ", keyColumnNames)})");
+				if (INDEX_NAME != null)
+					columnDefs.Add($"CONSTRAINT [PrimaryKey] PRIMARY KEY ({String.Join(", ", keyColumnNames)})");
 
 				string commandText = $"CREATE TABLE [{TABLE_NAME}] ({String.Join(", ", columnDefs)})";
 
 				Console.WriteLine(commandText);
 
-				ExecuteNonQuery(connection, commandText);
+				Tools.ExecuteNonQuery(connection, commandText);
 			}
 
 			return tableNames.ToArray();
@@ -263,11 +240,11 @@ namespace access_linker
 				string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
 
 				File.WriteAllLines(iniFilename, new string[] {
-					$"[{Path.GetFileName(csvFilename)}]",
-					"Format=TabDelimited",
-					"CharacterSet=65001",
-					"HDR=YES",
-				});
+						$"[{Path.GetFileName(csvFilename)}]",
+						"Format=TabDelimited",
+						"CharacterSet=65001",
+						"HDR=YES",
+					});
 
 				using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
 				{
@@ -309,35 +286,7 @@ namespace access_linker
 
 				Console.WriteLine(commandText);
 
-				ExecuteNonQuery(connection, commandText);
-			}
-		}
-
-
-
-		public static DataSet ExecuteFill(OleDbConnection connection, string commandText)
-		{
-			DataSet dataSet = new DataSet();
-
-			using (OleDbDataAdapter adapter = new OleDbDataAdapter(commandText, connection))
-				adapter.Fill(dataSet);
-
-			return dataSet;
-		}
-
-		public static void ExecuteNonQuery(OleDbConnection connection, string commandText)
-		{
-			using (OleDbCommand command = new OleDbCommand(commandText, connection))
-			{
-				connection.Open();
-				try
-				{
-					command.ExecuteNonQuery();
-				}
-				finally
-				{
-					connection.Close();
-				}
+				Tools.ExecuteNonQuery(connection, commandText);
 			}
 		}
 
