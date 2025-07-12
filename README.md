@@ -2,7 +2,7 @@
 Link Microsoft Access to ODBC database and other tools.
 
 ## Notes
-- With `link` or `import` if tables do not have a PK you will get a pop up from Access, just click OK. Warning the pop up may end up hidden behind another window and you wouldn't know (apears to hang).
+- With `TransferDatabase` commands if tables do not have a PK you will get a pop up from Access, just click OK. Warning the pop up may end up hidden behind another window and you wouldn't know (apears to hang).
 - You may have problems running & compiling due to problems with office component versions.
 - Use full path names
 
@@ -63,16 +63,13 @@ Link Microsoft Access to ODBC database and other tools.
 
 ## Connection Strings
 
-### SQL
+### ODBC (SQLite)
+MS Access uses ODBC to connect to SQLite. You need to install dirvers. You can list them with the Power Shell command `Get-OdbcDriver`.
 
-Windows Authentication. 
-```
-"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;Integrated Security=True;TrustServerCertificate=True;"
-```
+http://www.ch-werner.de/sqliteodbc/
 
-SQL Authentication (username & password)
 ```
-"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;User Id='MY-USER';Password='MY-PASS';TrustServerCertificate=True;"
+DRIVER={SQLite3 ODBC Driver};DATABASE=SQLITE-FILENAME;
 ```
 
 ### ODBC (SQL Server)
@@ -88,15 +85,6 @@ Driver={ODBC Driver 18 for SQL Server};SERVER=MY-SERVER;DATABASE=MY-DATABASE;Tru
 SQL Authentication (username & password)
 ```
 Driver={ODBC Driver 18 for SQL Server};SERVER=MY-SERVER;DATABASE=MY-DATABASE;UID=api;PWD=api;TrustServerCertificate=Yes;
-```
-
-### ODBC (SQLite)
-MS Access uses ODBC to connect to SQLite. You need to install dirvers. You can list them with the Power Shell command `Get-OdbcDriver`.
-
-http://www.ch-werner.de/sqliteodbc/
-
-```
-DRIVER={SQLite3 ODBC Driver};DATABASE=SQLITE-FILENAME;
 ```
 
 ### OLE DB
@@ -115,4 +103,15 @@ MS Access
 access-linker will automatically append the Access System Database to the connection string. You have to run Access for the first time to create this file.
 ```
 Jet OLEDB:System Database='C:\Users\Sam\AppData\Roaming\Microsoft\Access\System.mdw';
+```
+### SQL
+
+Windows Authentication. 
+```
+"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;Integrated Security=True;TrustServerCertificate=True;"
+```
+
+SQL Authentication (username & password)
+```
+"Data Source=MY-SERVER;Initial Catalog=MY-DATABASE;User Id='MY-USER';Password='MY-PASS';TrustServerCertificate=True;"
 ```
