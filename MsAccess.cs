@@ -213,14 +213,15 @@ namespace access_linker
 				string INDEX_NAME = null;
 				List<string> keyColumnNames = new List<string>();
 
-				foreach (DataRow indexRow in schema.Tables["INDEXES"].Select($"[TABLE_NAME] = '{TABLE_NAME}' AND [INDEX_NAME] LIKE 'PK_%'", "ORDINAL_POSITION")) //	 AND [TYPE] = 1 or 3 ?
+				// !!! Don't like the PK finding here
+				foreach (DataRow indexRow in schema.Tables["INDEXES"].Select($"[TABLE_NAME] = '{TABLE_NAME}' AND ([INDEX_NAME] LIKE 'PK_%' OR [INDEX_NAME] LIKE 'sqlite_autoindex_%')", "ORDINAL_POSITION"))
 				{
 					INDEX_NAME = (string)indexRow["INDEX_NAME"];
 					keyColumnNames.Add((string)indexRow["COLUMN_NAME"]);
 				}
 
 				if (INDEX_NAME != null)
-					columnDefs.Add($"CONSTRAINT [PrimaryKey] PRIMARY KEY ({String.Join(", ", keyColumnNames)})");
+					columnDefs.Add($"CONSTRAINT [{INDEX_NAME}] PRIMARY KEY ({String.Join(", ", keyColumnNames)})");
 
 				string commandText = $"CREATE TABLE [{TABLE_NAME}] ({String.Join(", ", columnDefs)})";
 

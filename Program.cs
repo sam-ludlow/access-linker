@@ -33,6 +33,9 @@ namespace access_linker
 			if (arguments.ContainsKey("odbc") == true)
 				arguments["odbc"] = Tools.MakeConnectionStringODBC(arguments["odbc"]);
 
+			if (arguments.ContainsKey("mssql") == true)
+				arguments["mssql"] = Tools.MakeConnectionStringMsSQL(arguments["mssql"]);
+
 			switch (arguments["command"])
 			{
 				//
@@ -48,12 +51,31 @@ namespace access_linker
 					MsAccess.Create(arguments["filename"]);
 					break;
 
+				case "access-schema":
+					ValidateRequiredParameters("filename");
+					MsAccess.Schema(arguments["filename"]);
+					break;
+
 				case "access-link":
 					ValidateRequiredParameters("filename", "odbc");
 					MsAccess.Link(arguments["filename"], arguments["odbc"]);
 					break;
 
+				case "access-link-new":
+					ValidateRequiredParameters("filename", "odbc");
+					MsAccess.Delete(arguments["filename"]);
+					MsAccess.Create(arguments["filename"]);
+					MsAccess.Link(arguments["filename"], arguments["odbc"]);
+					break;
+
 				case "access-import":
+					ValidateRequiredParameters("filename", "odbc");
+					MsAccess.Import(arguments["filename"], arguments["odbc"]);
+					break;
+
+				case "access-import-new":
+					MsAccess.Delete(arguments["filename"]);
+					MsAccess.Create(arguments["filename"]);
 					ValidateRequiredParameters("filename", "odbc");
 					MsAccess.Import(arguments["filename"], arguments["odbc"]);
 					break;
@@ -75,10 +97,7 @@ namespace access_linker
 					MsAccess.Insert(arguments["filename"], arguments["odbc"]);
 					break;
 
-				case "access-schema":
-					ValidateRequiredParameters("filename");
-					MsAccess.Schema(arguments["filename"]);
-					break;
+
 
 
 				//
@@ -101,7 +120,20 @@ namespace access_linker
 				//
 				// SQL Server
 				//
+				case "mssql-delete":
+					ValidateRequiredParameters("mssql", "name");
+					MsSQL.Delete(arguments["mssql"], arguments["name"]);
+					break;
 
+				case "mssql-create":
+					ValidateRequiredParameters("mssql", "name");
+					MsSQL.Create(arguments["mssql"], arguments["name"], null, null);
+					break;
+
+				case "mssql-schema-ansi":
+					ValidateRequiredParameters("mssql");
+					Tools.PopText(MsSQL.SchemaAnsi(arguments["mssql"]));
+					break;
 
 
 				//
@@ -109,11 +141,10 @@ namespace access_linker
 				//
 				case "odbc-schema":
 					ValidateRequiredParameters("odbc");
-					DataSet schema;
 					using (OdbcConnection connection = new OdbcConnection(arguments["odbc"]))
-						schema = Tools.SchemaConnection(connection);
-					Tools.PopText(schema);
+						Tools.PopText(Tools.SchemaConnection(connection));
 					break;
+
 
 
 				default:

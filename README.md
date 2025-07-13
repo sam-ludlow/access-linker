@@ -8,58 +8,38 @@ Link Microsoft Access to ODBC database and other tools.
 
 ## Usage
 
-### MS Access General
+### MS Access
 | Name | Description | Example |
-| ------------- | ------------- | --- |
+| ---- | ----------- | ------- |
 | access-delete | Delete an Access database | `access-linker.exe access-delete filename="C:\tmp\target.accdb"` |
 | access-create | Create an empty Access database (stored internally) | `access-linker.exe access-create filename="C:\tmp\target.accdb"` |
 | access-schema | View Access database schema using ADO.NET connection.GetSchema() | `access-linker.exe access-schema filename="C:\tmp\target.accdb"` |
+| access-link | Link Access to an ODBC database using TransferDatabase | `access-linker.exe access-link filename="C:\tmp\target.accdb" odbc="C:\tmp\source.sqlite"` |
+| access-link-new | New Access and Link to an ODBC database using TransferDatabase | `access-linker.exe access-link-new filename="C:\tmp\target.accdb" odbc="my-mssql-server@source-database"` |
+| access-import | Import into Access from an ODBC database using TransferDatabase  | `access-linker.exe access-import filename="C:\tmp\target.accdb" odbc="C:\tmp\source.sqlite"` |
+| access-import-new | New Access and Import from an ODBC database using TransferDatabase | `access-linker.exe access-import-new filename="C:\tmp\target.accdb" odbc="my-mssql-server@source-database"` |
+| access-export | Export from Access to and ODBC database using TransferDatabase | `access-linker.exe access-export filename="C:\source.accdb" odbc="my-mssql-server@target-database"` |
+| access-insert | Bulk Insert into Access from ODBC source using OLE DB | `access-linker.exe access-insert filename="C:\tmp\target.accdb" odbc="C:\tmp\source.sqlite"` |
+| access-insert-new | New Access and Bulk Insert from ODBC source using OLE DB | `access-linker.exe access-insert-new filename="C:\tmp\target.accdb" odbc="my-mssql-server@source-database"` |
 
-### MS Access Link to ODBC using TransferDatabase (access-link)
-| Description | Example |
-| ----------- | ------- |
-| SQLite => MS Access | `access-linker.exe access-link filename="C:\target.accdb" odbc="C:\source.sqlite"` |
-| SQLite => MS Access (full connection string) | `access-linker.exe access-link filename="C:\target.accdb" odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\source.sqlite';"` |
-| MS SQL => MS Access | `access-linker.exe access-link filename="C:\target.accdb" odbc="my-mssql-server@source-database"` |
-| MS SQL => MS Access (full connection string) | `access-linker.exe access-link filename="C:\target.accdb" odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
-
-### MS Access Import from ODBC using TransferDatabase (access-import)
-| Description | Example |
-| ----------- | ------- |
-| SQLite => MS Access | `access-linker.exe access-import filename="C:\target.accdb" odbc="C:\source.sqlite"` |
-| SQLite => MS Access (full connection string) | `access-linker.exe access-import filename="C:\target.accdb" odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\source.sqlite';"` |
-| MS SQL => MS Access | `access-linker.exe access-import filename="C:\target.accdb" odbc="my-mssql-server@source-database"` |
-| MS SQL => MS Access (full connection string) | `access-linker.exe access-import filename="C:\target.accdb" odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
-
-### MS Access Export to ODBC using TransferDatabase (access-export)
-| Description | Example |
-| ----------- | ------- |
-| MS Access => SQLite | `access-linker.exe access-export filename="C:\target.accdb" odbc="C:\source.sqlite"` |
-| MS Access => SQLite (full connection string) | `access-linker.exe access-export filename="C:\target.accdb" odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\source.sqlite';"` |
-| MS Access => MS SQL | `access-linker.exe access-export filename="C:\target.accdb" odbc="my-mssql-server@source-database"` |
-| MS Access => MS SQL (full connection string) | `access-linker.exe access-export filename="C:\target.accdb" odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
-
-### MS Access OLEDB Insert from ODBC source (access-insert)
-| Description | Example |
-| ----------- | ------- |
-| SQLite => MS Access | `access-linker.exe access-insert filename="C:\target.accdb" odbc="C:\source.sqlite"` |
-| SQLite => MS Access (full connection string) | `access-linker.exe access-insert filename="C:\target.accdb" odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\source.sqlite';"` |
-| MS SQL => MS Access | `access-linker.exe access-insert filename="C:\target.accdb" odbc="my-mssql-server@source-database"` |
-| MS SQL => MS Access (full connection string) | `access-linker.exe access-insert filename="C:\target.accdb" odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
-
-### SQLite General
+### SQL Lite
 | Name | Description | Example |
-| ------------- | ------------- | --- |
+| ---- | ----------- | ------- |
 | sqlite-delete | Delete an SQLite database | `access-linker.exe sqlite-delete filename="C:\tmp\target.sqlite"` |
 | sqlite-create | Create an empty SQLite database | `access-linker.exe sqlite-create filename="C:\tmp\target.sqlite"` |
 
-### ODBC General
+### MS SQL Server
 | Name | Description | Example |
-| ------------- | ------------- | --- |
-| odbc-schema (SQLite) | View ODBC database schema using ADO.NET connection.GetSchema() | `access-linker.exe odbc-schema filename="C:\tmp\target.accdb"` |
-| odbc-schema (SQLite connection string) | View ODBC database schema using ADO.NET connection.GetSchema() | `access-linker.exe odbc-schema filename="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\source.sqlite';"` |
-| odbc-schema (MS SQL) | View ODBC database schema using ADO.NET connection.GetSchema() | `access-linker.exe odbc-schema filename="my-mssql-server@source-database"` |
-| odbc-schema (MS SQL connection string) | View ODBC database schema using ADO.NET connection.GetSchema() | `access-linker.exe odbc-schema filename="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes"` |
+| ---- | ----------- | ------- |
+| mssql-delete | Delete an MS SQL database | `access-linker.exe mssql-delete mssql=my-mssql-server name=target-database` |
+| mssql-create | Create an empty MS SQL database | `access-linker.exe mssql-create mssql=my-mssql-server name=target-database` |
+| mssql-schema-ansi | View MS SQL database schema using INFORMATION_SCHEMA | `access-linker.exe mssql-schema-ansi mssql=my-mssql-server@target-database` |
+
+### ODBC
+| Name | Description | Example |
+| ---- | ----------- | ------- |
+| odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (SQLite example) | `access-linker.exe odbc-schema filename="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\tmp\source.sqlite';"` |
+| odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (MS SQL example) | `access-linker.exe odbc-schema odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
 
 ## Connection Strings
 

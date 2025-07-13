@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Data;
-using System.Data.Common;
 
 namespace access_linker
 {
-	public class DataSQL
+	public class MsSQL
 	{
-
-
-
 		public static void Create(string connectionString, string database, string directoryData, string directoryLogs)
 		{
 			using (SqlConnection connection = new SqlConnection(connectionString))
@@ -20,6 +15,9 @@ namespace access_linker
 
 				if (directoryData != null)
 				{
+					if (directoryLogs == null)
+						directoryLogs = directoryData;
+
 					string dataName = database;
 					string logName = database + "_log";
 
@@ -61,82 +59,49 @@ namespace access_linker
 			}
 		}
 
-		//public static DataSet Schema(string sqlConnectionString)
-		//{
-		//	DataSet dataSet = new DataSet();
+		public static DataSet SchemaAnsi(string connectionString)
+		{
+			string[] informationSchemaNames = {
+				"CHECK_CONSTRAINTS",
+				"COLUMN_DOMAIN_USAGE",
+				"COLUMN_PRIVILEGES",
+				"COLUMNS",
+				"CONSTRAINT_COLUMN_USAGE",
+				"CONSTRAINT_TABLE_USAGE",
+				"DOMAIN_CONSTRAINTS",
+				"DOMAINS",
+				"KEY_COLUMN_USAGE",
+				"PARAMETERS",
+				"REFERENTIAL_CONSTRAINTS",
+				"ROUTINE_COLUMNS",
+				"ROUTINES",
+				"SCHEMATA",
+				"TABLE_CONSTRAINTS",
+				"TABLE_PRIVILEGES",
+				"TABLES",
+				"VIEW_COLUMN_USAGE",
+				"VIEW_TABLE_USAGE",
+				"VIEWS",
+			};
 
-		//	using (SqlConnection connection = new SqlConnection(sqlConnectionString))
-		//	{
-		//		connection.Open();
-		//		try
-		//		{
-		//			List<string> collectionNames = new List<string>();
-		//			foreach (DataRow row in connection.GetSchema().Rows)
-		//				collectionNames.Add((string)row["CollectionName"]);
-		//			collectionNames.Sort();
+			DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
 
-		//			foreach (string collectionName in collectionNames)
-		//			{
-		//				DataTable table = connection.GetSchema(collectionName);
-		//				table.TableName = collectionName;
-		//				dataSet.Tables.Add(table);
-		//			}
-		//		}
-		//		finally
-		//		{
-		//			connection.Close();
-		//		}
-		//	}
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				foreach (string name in informationSchemaNames)
+				{
+					using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
+					{
+						DataTable table = new DataTable(name);
+						adapter.Fill(table);
+						dataSet.Tables.Add(table);
+					}
+				}
+			}
 
-		//	return dataSet;
-		//}
+			return dataSet;
+		}
 
-		//public static DataSet SchemaANSI(string sqlConnectionString)
-		//{
-		//	using (SqlConnection connection = new SqlConnection(sqlConnectionString))
-		//		return GetInformationSchemas(connection);
-		//}
-
-		//public static DataSet GetInformationSchemas(DbConnection connection)
-		//{
-		//	string[] informationSchemaNames = {
-		//		"CHECK_CONSTRAINTS",
-		//		"COLUMN_DOMAIN_USAGE",
-		//		"COLUMN_PRIVILEGES",
-		//		"COLUMNS",
-		//		"CONSTRAINT_COLUMN_USAGE",
-		//		"CONSTRAINT_TABLE_USAGE",
-		//		"DOMAIN_CONSTRAINTS",
-		//		"DOMAINS",
-		//		"KEY_COLUMN_USAGE",
-		//		"PARAMETERS",
-		//		"REFERENTIAL_CONSTRAINTS",
-		//		"ROUTINE_COLUMNS",
-		//		"ROUTINES",
-		//		"SCHEMATA",
-		//		"TABLE_CONSTRAINTS",
-		//		"TABLE_PRIVILEGES",
-		//		"TABLES",
-		//		"VIEW_COLUMN_USAGE",
-		//		"VIEW_TABLE_USAGE",
-		//		"VIEWS",
-		//	};
-
-		//	DataSet dataSet = new DataSet("INFORMATION_SCHEMA");
-
-		//	foreach (string name in informationSchemaNames)
-		//	{
-		//		using (DbDataAdapter)
-		//		using (DbDataAdapter adapter = new DbDataAdapter($"SELECT * FROM [{dataSet.DataSetName}].[{name}]", connection))
-		//		{
-		//			DataTable table = new DataTable(name);
-		//			adapter.Fill(table);
-		//			dataSet.Tables.Add(table);
-		//		}
-		//	}
-
-		//	return dataSet;
-		//}
 
 
 		public static void Backup(string filename, string connectionString, string databaseName, string with)
@@ -319,24 +284,24 @@ namespace access_linker
 
 
 
-		public static string[] ListDatabaseTables(string connectionString)
-		{
-			using (SqlConnection connection = new SqlConnection(connectionString))
-				return ListDatabaseTables(connection);
-		}
+		//public static string[] ListDatabaseTables(string connectionString)
+		//{
+		//	using (SqlConnection connection = new SqlConnection(connectionString))
+		//		return ListDatabaseTables(connection);
+		//}
 
-		public static string[] ListDatabaseTables(SqlConnection connection)
-		{
-			List<string> result = new List<string>();
+		//public static string[] ListDatabaseTables(SqlConnection connection)
+		//{
+		//	List<string> result = new List<string>();
 
-			DataTable table = DataSQL.ExecuteFill(connection,
-				"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
+		//	DataTable table = DataSQL.ExecuteFill(connection,
+		//		"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
 
-			foreach (DataRow row in table.Rows)
-				result.Add((string)row["TABLE_NAME"]);
+		//	foreach (DataRow row in table.Rows)
+		//		result.Add((string)row["TABLE_NAME"]);
 
-			return result.ToArray();
-		}
+		//	return result.ToArray();
+		//}
 
 
 		public static int ExecuteNonQuery(SqlConnection connection, string commandText)

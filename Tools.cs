@@ -54,6 +54,23 @@ namespace access_linker
 			return connectionString;
 		}
 
+		public static string MakeConnectionStringMsSQL(string connectionString)
+		{
+			if (connectionString.Contains(";") == false)
+			{
+				string[] parts = connectionString.Split('@');
+
+				connectionString = $"Data Source={parts[0]};Integrated Security=True;TrustServerCertificate=True;";
+
+				if (parts.Length > 1)
+					connectionString += $"Initial Catalog={parts[1]};";
+			}
+
+			Console.WriteLine($"MS SQL:\t{connectionString}");
+
+			return connectionString;
+		}
+
 		public static string[] TableNameList(DbConnection connection)
 		{
 			connection.Open();
