@@ -38,7 +38,7 @@ Link Microsoft Access to ODBC database and other tools.
 ### ODBC
 | Name | Description | Example |
 | ---- | ----------- | ------- |
-| odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (SQLite example) | `access-linker.exe odbc-schema filename="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\tmp\source.sqlite';"` |
+| odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (SQLite example) | `access-linker.exe odbc-schema odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\tmp\source.sqlite';"` |
 | odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (MS SQL example) | `access-linker.exe odbc-schema odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
 
 ## Connection Strings
