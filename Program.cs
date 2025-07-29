@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Odbc;
 using System.IO;
+using System.Reflection;
+using System.Windows.Forms;
 
 namespace access_linker
 {
@@ -10,8 +12,53 @@ namespace access_linker
 	{
 		private static Dictionary<string, string> arguments = new Dictionary<string, string>();
 
+		[STAThread]
 		static void Main(string[] args)
 		{
+			Version version = Assembly.GetExecutingAssembly().GetName().Version;
+			string assemblyVersion = $"{version.Major}.{version.Minor}";
+
+			string welcomeText = @"@VERSION
+                                                                     __  __            __                           
+                                                                    $$\ $$\           $$\                           
+                                                                    $$ |\__|          $$ |                          
+ $$$$$$\   $$$$$$$\  $$$$$$$\  $$$$$$\   $$$$$$$\  $$$$$$$\         $$ |$$\ $$$$$$$\  $$ |  $$\  $$$$$$\   $$$$$$\  
+ \____$$\ $$  _____|$$  _____|$$  __$$\ $$  _____|$$  _____|$$$$$$\ $$ |$$ |$$  __$$\ $$ | $$  |$$  __$$\ $$  __$$\ 
+ $$$$$$$ |$$ /      $$ /      $$$$$$$$ |\$$$$$$\  \$$$$$$\  \______|$$ |$$ |$$ |  $$ |$$$$$$  / $$$$$$$$ |$$ |  \__|
+$$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |  $$ |$$  _$$<  $$   ____|$$ |      
+\$$$$$$$ |\$$$$$$$\ \$$$$$$$\ \$$$$$$$\ $$$$$$$  |$$$$$$$  |        $$ |$$ |$$ |  $$ |$$ | \$$\ \$$$$$$$\ $$ |      
+ \_______| \_______| \_______| \_______|\_______/ \_______/         \__|\__|\__|  \__|\__|  \__| \_______|\__|      
+
+                                   See the README for more information
+                               https://github.com/sam-ludlow/access-linker
+
+";
+			Console.WriteLine(welcomeText.Replace("@VERSION", assemblyVersion));
+
+			string quickStart = "Select SQLite database OR text file containing ODBC connection string";
+
+			if (args.Length == 0)
+			{
+				Console.WriteLine(quickStart);
+
+				OpenFileDialog openFileDialog = new OpenFileDialog
+				{
+					Title = $"Access Linker {assemblyVersion} - {quickStart}",
+					Filter = "SQLite (*.sqlite)|*.sqlite|ODBC string in text (*.txt)|*.txt|All (*.*)|*.*",	//	<<< Boobies
+				};
+
+				if (openFileDialog.ShowDialog() != DialogResult.OK)
+					return;
+
+				string sourceFilename = openFileDialog.FileName;
+				string targetFilename = openFileDialog.FileName + ".accdb";
+
+				if (Path.GetExtension(sourceFilename).ToLower() == ".txt")
+					sourceFilename = File.ReadAllText(sourceFilename);
+
+				args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={sourceFilename}" };
+			}
+
 			if (args.Length > 0 && args[0].Contains("=") == false)
 				args[0] = $"command={args[0]}";
 
@@ -98,7 +145,13 @@ namespace access_linker
 					break;
 
 
-
+				//
+				// Excel
+				//
+				case "excel-export":
+					ValidateRequiredParameters("filename");
+					MsAccess.ExcelExport(arguments["filename"]);
+					break;
 
 				//
 				// SQLite
@@ -114,7 +167,12 @@ namespace access_linker
 					File.WriteAllBytes(arguments["filename"], new byte[0]);
 					break;
 
+				case "sqlite-schema":
+					ValidateRequiredParameters("odbc");
+					using (OdbcConnection connection = new OdbcConnection(arguments["odbc"]))
+						Tools.PopText(SQLite.SchemaPragma(connection));
 
+					break;
 
 
 				//

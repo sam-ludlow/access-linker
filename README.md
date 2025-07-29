@@ -5,8 +5,13 @@ Link Microsoft Access to ODBC database and other tools.
 - With `TransferDatabase` commands if tables do not have a PK you will get a pop up from Access, just click OK. Warning the pop up may end up hidden behind another window and you wouldn't know (apears to hang).
 - You can use short hand connection strings. SQLite: `filename`, MS SQL: `server@database` (using Integrated Security)
 - Use full path names
- 
-## Usage
+
+## Quick Usage
+Start access-linker without any arguments then select an SQLite database OR text file containing an ODBC connection string.
+
+![MAME-AO UI](https://raw.githubusercontent.com/sam-ludlow/access-linker/main/images/access-quick-link.png)
+
+## Command Line Usage
 
 ### MS Access
 | Name | Description | Example |

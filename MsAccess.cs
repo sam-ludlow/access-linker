@@ -13,6 +13,48 @@ namespace access_linker
 {
 	public class MsAccess
 	{
+
+
+
+//		------
+//Tables
+//------
+//TABLE_CATALOG TABLE_SCHEMA    TABLE_NAME TABLE_TYPE  TABLE_GUID DESCRIPTION TABLE_PROPID DATE_CREATED    DATE_MODIFIED
+//String  String String  String Guid    String Int64   DateTime DateTime
+//		Sheet1$	TABLE				15/07/2025 15:43:15	15/07/2025 15:43:15
+
+		public static void ExcelSchema(string filename)
+		{
+
+		}
+		public static void ExcelExport(string filename)
+		{
+			string targetFilename = filename + ".txt";
+			File.Delete(targetFilename);
+
+			//	12 & 16
+
+			//	Datatype issues !!!!!
+
+			string connectionString = $"Provider='Microsoft.ACE.OLEDB.16.0';Extended Properties='Excel 8.0';Data Source='{filename}';";
+
+			using (OleDbConnection connection = new OleDbConnection(connectionString))
+			{
+
+				using (OleDbDataAdapter adapter = new OleDbDataAdapter("SELECT * FROM [Sheet1$]", connection))
+				{
+					DataSet schema = Tools.SchemaConnection(connection);
+
+					//DataTable table = new DataTable();
+					//adapter.Fill(table);
+
+					Tools.PopText(schema);
+
+				}
+			}
+		}
+
+
 		public static void Delete(string filename)
 		{
 			if (Path.GetExtension(filename).ToLower() != ".accdb")
@@ -87,6 +129,9 @@ namespace access_linker
 				{
 					foreach (string tableName in tableNames)
 					{
+						//if (tableName.EndsWith("_History") == true)
+						//	continue;
+
 						Console.Write(tableName);
 
 						string sourceTableName = tableName; // = type == "acExport" ? tableName : $"dbo.{tableName}";

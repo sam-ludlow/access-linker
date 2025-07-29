@@ -138,9 +138,17 @@ namespace access_linker
 					}
 					else
 					{
-						table = connection.GetSchema(collectionName);
-						table.TableName = collectionName;
-						dataSet.Tables.Add(table);
+						try
+						{
+							table = connection.GetSchema(collectionName);
+							table.TableName = collectionName;
+							dataSet.Tables.Add(table);
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine($"GetSchema({collectionName}): {e.Message}");
+						}
+
 					}
 				}
 			}
