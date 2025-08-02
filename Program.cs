@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Odbc;
 using System.IO;
 using System.Reflection;
@@ -18,8 +17,10 @@ namespace access_linker
 			Version version = Assembly.GetExecutingAssembly().GetName().Version;
 			string assemblyVersion = $"{version.Major}.{version.Minor}";
 
+			Console.Title = $"access-linker {assemblyVersion}";
+
 			string welcomeText = @"@VERSION
-                                                                     __  __            __                           
+                                                                    __  __            __                           
                                                                     $$\ $$\           $$\                           
                                                                     $$ |\__|          $$ |                          
  $$$$$$\   $$$$$$$\  $$$$$$$\  $$$$$$\   $$$$$$$\  $$$$$$$\         $$ |$$\ $$$$$$$\  $$ |  $$\  $$$$$$\   $$$$$$\  
@@ -35,7 +36,7 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 ";
 			Console.WriteLine(welcomeText.Replace("@VERSION", assemblyVersion));
 
-			string quickStart = "Select SQLite database OR text file containing ODBC connection string";
+			string quickStart = "Select SQLite, text file containing ODBC connection string, or XML file";
 
 			if (args.Length == 0)
 			{
@@ -44,7 +45,7 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 				OpenFileDialog openFileDialog = new OpenFileDialog
 				{
 					Title = $"Access Linker {assemblyVersion} - {quickStart}",
-					Filter = "SQLite (*.sqlite)|*.sqlite|ODBC string in text (*.txt)|*.txt|All (*.*)|*.*",	//	<<< Boobies
+					Filter = "SQLite (*.sqlite)|*.sqlite|ODBC string in text (*.txt)|*.txt|XML File (*.xml)|*.xml|All (*.*)|*.*",	//	<<< Boobies
 				};
 
 				if (openFileDialog.ShowDialog() != DialogResult.OK)
@@ -53,10 +54,20 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 				string sourceFilename = openFileDialog.FileName;
 				string targetFilename = openFileDialog.FileName + ".accdb";
 
-				if (Path.GetExtension(sourceFilename).ToLower() == ".txt")
-					sourceFilename = File.ReadAllText(sourceFilename);
+				switch (Path.GetExtension(sourceFilename).ToLower())
+				{
+					case ".txt":
+						args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={File.ReadAllText(sourceFilename)}" };
+						break;
 
-				args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={sourceFilename}" };
+					case ".xml":
+						args = new string[] { "xml-insert-new", $"filename={sourceFilename}" };
+						break;
+
+					default:
+						args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={sourceFilename}" };
+						break;
+				}			
 			}
 
 			if (args.Length > 0 && args[0].Contains("=") == false)
@@ -203,7 +214,19 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 						Tools.PopText(Tools.SchemaConnection(connection));
 					break;
 
+				//
+				// XML
+				//
+				case "xml-insert-new":
+					ValidateRequiredParameters("filename");
 
+					string xmlFilename = arguments["filename"];
+					string targetFilename = xmlFilename + ".accdb";
+
+					MsAccess.Delete(targetFilename);
+					MsAccess.Create(targetFilename);
+					XML.InsertAccess(xmlFilename, targetFilename);
+					break;
 
 				default:
 					throw new ApplicationException($"Unknown command: {arguments["command"]}");

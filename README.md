@@ -7,7 +7,13 @@ Link Microsoft Access to ODBC database and other tools.
 - Use full path names
 
 ## Quick Usage
-Start access-linker without any arguments then select an SQLite database OR text file containing an ODBC connection string.
+Start access-linker without any arguments then select sorce file, the target access database will have `.accdb` on the end.
+
+| File Extention | Usage |
+| ---- | ----------- | ------- |
+| `.txt` | Link Access to an ODBC database from text file containing connection string |
+| `.xml` | Bulk Insert into Access from XML using OLE DB |
+| `.sqlite`, `.*` | Link Access to SQLite database using ODBC |
 
 ![MAME-AO UI](https://raw.githubusercontent.com/sam-ludlow/access-linker/main/images/access-quick-link.png)
 
@@ -45,6 +51,11 @@ Start access-linker without any arguments then select an SQLite database OR text
 | ---- | ----------- | ------- |
 | odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (SQLite example) | `access-linker.exe odbc-schema odbc="DRIVER={SQLite3 ODBC Driver};DATABASE='C:\tmp\source.sqlite';"` |
 | odbc-schema | View ODBC database schema using ADO.NET connection.GetSchema() (MS SQL example) | `access-linker.exe odbc-schema odbc="Driver={ODBC Driver 18 for SQL Server};SERVER=my-mssql-server;DATABASE=source-database;Trusted_Connection=Yes;TrustServerCertificate=Yes;"` |
+
+### XML
+| Name | Description | Example |
+| ---- | ----------- | ------- |
+| xml-insert-new | New Access and Bulk Insert from XML using OLE DB | `access-linker.exe xml-insert-new filename="C:\tmp\source.xml"` |
 
 ## Connection Strings
 

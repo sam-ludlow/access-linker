@@ -217,6 +217,7 @@ namespace access_linker
 						case "varchar":
 						case "nvarchar":
 						case "TEXT":
+						case "String":
 							dataType = $"VARCHAR({COLUMN_SIZE})";
 							if (COLUMN_SIZE == 0 || COLUMN_SIZE > 255)
 								dataType = "LONGTEXT";
@@ -234,6 +235,7 @@ namespace access_linker
 
 						case "bigint":
 						case "INTEGER":
+						case "Int64":
 							dataType = "BIGINT";
 							break;
 
