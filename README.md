@@ -10,7 +10,7 @@ Link Microsoft Access to ODBC database and other tools.
 Start access-linker without any arguments then select sorce file, the target access database will have `.accdb` on the end.
 
 | File Extention | Usage |
-| ---- | ----------- | ------- |
+| -------------- | ----- |
 | `.txt` | Link Access to an ODBC database from text file containing connection string |
 | `.xml` | Bulk Insert into Access from XML using OLE DB |
 | `.sqlite`, `.*` | Link Access to SQLite database using ODBC |
