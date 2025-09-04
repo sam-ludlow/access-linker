@@ -2,6 +2,7 @@
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Linq;
 
 namespace access_linker
 {
@@ -102,13 +103,25 @@ namespace access_linker
 			return dataSet;
 		}
 
+		public static string[] Databases(string connectionString)
+		{
+			using (SqlConnection connection = new SqlConnection(connectionString))
+			{
+				using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT [name] FROM [sys].[databases] ORDER BY [name]", connection))
+				{
+					DataTable table = new DataTable();
+					adapter.Fill(table);
+					return table.Rows.Cast<DataRow>().Select(row => (string)row["name"]).ToArray();
+				}
+			}
+		}
 
 
 		public static void Backup(string filename, string connectionString, string databaseName, string with)
 		{
 			using (SqlConnection connection = new SqlConnection(connectionString))
 			{
-				string commandText = "BACKUP DATABASE @database TO DISK=@disk";
+				string commandText = $"BACKUP DATABASE [{databaseName}] TO DISK='{filename}'";
 
 				if (with != null)
 					commandText += $" WITH {with}";
@@ -116,26 +129,22 @@ namespace access_linker
 				using (SqlCommand command = new SqlCommand(commandText, connection))
 				{
 					command.CommandTimeout = 24 * 60 * 60;
-
-					command.Parameters.AddWithValue("@database", databaseName);
-					command.Parameters.AddWithValue("@disk", filename);
-
 					ExecuteNonQuery(command);
 				}
 			}
 		}
 
-		public static void BackupVerify(string filename, string connectionString)
-		{
-			using (SqlConnection serverConnection = new SqlConnection(connectionString))
-				ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
-		}
+		//public static void BackupVerify(string filename, string connectionString)
+		//{
+		//	using (SqlConnection serverConnection = new SqlConnection(connectionString))
+		//		ExecuteNonQuery(serverConnection, $"RESTORE VERIFYONLY FROM DISK = '{filename}'");
+		//}
 
-		public static DataTable BackupFileList(string filename, string connectionString)
-		{
-			using (SqlConnection serverConnection = new SqlConnection(connectionString))
-				return ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
-		}
+		//public static DataTable BackupFileList(string filename, string connectionString)
+		//{
+		//	using (SqlConnection serverConnection = new SqlConnection(connectionString))
+		//		return ExecuteFill(serverConnection, $"RESTORE FILELISTONLY FROM DISK = '{filename}'");
+		//}
 
 		public static void Restore(string filename, string connectionString, string database, string directoryMDF, string directoryLDF, string with)
 		{
@@ -202,106 +211,80 @@ namespace access_linker
 
 
 
-		public static void Rename(string connectionString, string databaseSource, string databaseTarget, string directoryData, string directoryLogs)
-		{
-			using (SqlConnection serverConnection = new SqlConnection(connectionString))
-			{
-				if (DatabaseExists(serverConnection, databaseSource) == false)
-					throw new ApplicationException("Database Source does not exist");
-
-				if (DatabaseExists(serverConnection, databaseTarget) == true)
-					throw new ApplicationException("Target Database exists");
-
-				ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseSource}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
-				ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseSource}] MODIFY NAME = [{databaseTarget}]");
-				ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET MULTI_USER WITH ROLLBACK IMMEDIATE;");
-
-				using (SqlConnection databaseConnection = new SqlConnection())	// MakeConnectionStringSQL(connectionString, databaseTarget)))
-				{
-					DataTable filesTable = ExecuteFill(databaseConnection, "SELECT * FROM sys.database_files");
-
-					if (filesTable.Rows.Count != 2)
-						throw new ApplicationException("This only works with one ROWS and one LOG database");
-
-					filesTable.PrimaryKey = new DataColumn[] { filesTable.Columns["type_desc"] };
-
-					DataRow rowsRow = filesTable.Rows.Find("ROWS");
-					DataRow logRow = filesTable.Rows.Find("LOG");
-
-					if (rowsRow == null || logRow == null)
-						throw new ApplicationException("Did not find the 2 file rows.");
-
-					string rowsLogicalName = (string)rowsRow["name"];
-					string logLogicalName = (string)logRow["name"];
-
-					string rowsPhysicalName = (string)rowsRow["physical_name"];
-					string logPhysicalName = (string)logRow["physical_name"];
-
-					string rowsNewName = databaseTarget;
-					string logNewName = databaseTarget + "_log";
-
-					if (directoryData == null)
-						directoryData = Path.GetDirectoryName(rowsPhysicalName);
-
-					if (directoryLogs == null)
-						directoryLogs = Path.GetDirectoryName(logPhysicalName);
-
-					string rowsNewPhysicalName = Path.Combine(directoryData, rowsNewName + ".mdf");
-					string logNewPhysicalName = Path.Combine(directoryLogs, logNewName + ".ldf");
-
-					// rename logical
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{databaseTarget}] MODIFY FILE(NAME= '{rowsLogicalName}', NEWNAME= '{rowsNewName}')");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{databaseTarget}] MODIFY FILE(NAME= '{logLogicalName}', NEWNAME= '{logNewName}')");
-
-					// rename physical
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] MODIFY FILE(NAME = '{rowsNewName}', FILENAME = '{rowsNewPhysicalName}')");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] MODIFY FILE(NAME = '{logNewName}', FILENAME = '{logNewPhysicalName}')");
-
-					// rename filesystem
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET OFFLINE");
-
-					Console.Write($"Moving MDF {rowsPhysicalName} => {rowsNewPhysicalName} ...");
-					File.Move(rowsPhysicalName, rowsNewPhysicalName);
-					Console.WriteLine("...done");
-
-					Console.Write($"Moving LDF {logPhysicalName} => {logNewPhysicalName} ...");
-					File.Move(logPhysicalName, logNewPhysicalName);
-					Console.WriteLine("...done");
-
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET ONLINE");
-					ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET MULTI_USER WITH ROLLBACK IMMEDIATE");
-				}
-			}
-		}
-
-
-
-
-
-
-
-
-
-
-		//public static string[] ListDatabaseTables(string connectionString)
+		//public static void Rename(string connectionString, string databaseSource, string databaseTarget, string directoryData, string directoryLogs)
 		//{
-		//	using (SqlConnection connection = new SqlConnection(connectionString))
-		//		return ListDatabaseTables(connection);
+		//	using (SqlConnection serverConnection = new SqlConnection(connectionString))
+		//	{
+		//		if (DatabaseExists(serverConnection, databaseSource) == false)
+		//			throw new ApplicationException("Database Source does not exist");
+
+		//		if (DatabaseExists(serverConnection, databaseTarget) == true)
+		//			throw new ApplicationException("Target Database exists");
+
+		//		ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseSource}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+		//		ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseSource}] MODIFY NAME = [{databaseTarget}]");
+		//		ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET MULTI_USER WITH ROLLBACK IMMEDIATE;");
+
+		//		using (SqlConnection databaseConnection = new SqlConnection())	// MakeConnectionStringSQL(connectionString, databaseTarget)))
+		//		{
+		//			DataTable filesTable = ExecuteFill(databaseConnection, "SELECT * FROM sys.database_files");
+
+		//			if (filesTable.Rows.Count != 2)
+		//				throw new ApplicationException("This only works with one ROWS and one LOG database");
+
+		//			filesTable.PrimaryKey = new DataColumn[] { filesTable.Columns["type_desc"] };
+
+		//			DataRow rowsRow = filesTable.Rows.Find("ROWS");
+		//			DataRow logRow = filesTable.Rows.Find("LOG");
+
+		//			if (rowsRow == null || logRow == null)
+		//				throw new ApplicationException("Did not find the 2 file rows.");
+
+		//			string rowsLogicalName = (string)rowsRow["name"];
+		//			string logLogicalName = (string)logRow["name"];
+
+		//			string rowsPhysicalName = (string)rowsRow["physical_name"];
+		//			string logPhysicalName = (string)logRow["physical_name"];
+
+		//			string rowsNewName = databaseTarget;
+		//			string logNewName = databaseTarget + "_log";
+
+		//			if (directoryData == null)
+		//				directoryData = Path.GetDirectoryName(rowsPhysicalName);
+
+		//			if (directoryLogs == null)
+		//				directoryLogs = Path.GetDirectoryName(logPhysicalName);
+
+		//			string rowsNewPhysicalName = Path.Combine(directoryData, rowsNewName + ".mdf");
+		//			string logNewPhysicalName = Path.Combine(directoryLogs, logNewName + ".ldf");
+
+		//			// rename logical
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{databaseTarget}] MODIFY FILE(NAME= '{rowsLogicalName}', NEWNAME= '{rowsNewName}')");
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE[{databaseTarget}] MODIFY FILE(NAME= '{logLogicalName}', NEWNAME= '{logNewName}')");
+
+		//			// rename physical
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] MODIFY FILE(NAME = '{rowsNewName}', FILENAME = '{rowsNewPhysicalName}')");
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] MODIFY FILE(NAME = '{logNewName}', FILENAME = '{logNewPhysicalName}')");
+
+		//			// rename filesystem
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;");
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET OFFLINE");
+
+		//			Console.Write($"Moving MDF {rowsPhysicalName} => {rowsNewPhysicalName} ...");
+		//			File.Move(rowsPhysicalName, rowsNewPhysicalName);	//	TODO:	Do from server
+		//			Console.WriteLine("...done");
+
+		//			Console.Write($"Moving LDF {logPhysicalName} => {logNewPhysicalName} ...");
+		//			File.Move(logPhysicalName, logNewPhysicalName); //	TODO:	Do from server
+		//			Console.WriteLine("...done");
+
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET ONLINE");
+		//			ExecuteNonQuery(serverConnection, $"ALTER DATABASE [{databaseTarget}] SET MULTI_USER WITH ROLLBACK IMMEDIATE");
+		//		}
+		//	}
 		//}
 
-		//public static string[] ListDatabaseTables(SqlConnection connection)
-		//{
-		//	List<string> result = new List<string>();
 
-		//	DataTable table = DataSQL.ExecuteFill(connection,
-		//		"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
-
-		//	foreach (DataRow row in table.Rows)
-		//		result.Add((string)row["TABLE_NAME"]);
-
-		//	return result.ToArray();
-		//}
 
 
 		public static int ExecuteNonQuery(SqlConnection connection, string commandText)

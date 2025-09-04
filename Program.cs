@@ -45,30 +45,59 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 				OpenFileDialog openFileDialog = new OpenFileDialog
 				{
 					Title = $"Access Linker {assemblyVersion} - {quickStart}",
-					Filter = "SQLite (*.sqlite)|*.sqlite|ODBC string in text (*.txt)|*.txt|XML File (*.xml)|*.xml|All (*.*)|*.*",	//	<<< Boobies
+					Filter = "All (*.*)|*.*|SQLite (*.sqlite)|*.sqlite|ODBC string in text (*.txt)|*.txt|XML File (*.xml)|*.xml",
 				};
 
 				if (openFileDialog.ShowDialog() != DialogResult.OK)
 					return;
 
 				string sourceFilename = openFileDialog.FileName;
-				string targetFilename = openFileDialog.FileName + ".accdb";
 
 				switch (Path.GetExtension(sourceFilename).ToLower())
 				{
 					case ".txt":
-						args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={File.ReadAllText(sourceFilename)}" };
-						break;
+						string file = File.ReadAllText(sourceFilename);
+						if (file.Length == 0)
+							file = Path.GetFileNameWithoutExtension(sourceFilename);
+
+						string directory = Path.GetDirectoryName(sourceFilename);
+
+						string[] lines = file.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+
+						if (lines.Length == 1)
+						{
+							Run(new string[] { "access-link-new", $"filename={Path.Combine(directory, Path.GetFileNameWithoutExtension(sourceFilename) + ".accdb")}", $"odbc={lines[0]}" });
+							return;
+						}
+
+						foreach (string line in lines)
+						{
+							if (line.StartsWith("#") == true)
+								continue;
+
+							string connection = $"{Path.GetFileNameWithoutExtension(sourceFilename)}@{line}";
+							string filename = Path.Combine(directory, connection + ".accdb");
+							if (File.Exists(filename) == false)
+								Run(new string[] { "access-link-new", $"filename={filename}", $"odbc={connection}" });
+						}
+						return;
 
 					case ".xml":
 						args = new string[] { "xml-insert-new", $"filename={sourceFilename}" };
 						break;
 
 					default:
-						args = new string[] { "access-link-new", $"filename={targetFilename}", $"odbc={sourceFilename}" };
+						args = new string[] { "access-link-new", $"filename={sourceFilename + ".accdb"}", $"odbc={sourceFilename}" };
 						break;
-				}			
+				}
 			}
+
+			Run(args);
+		}
+
+		static void Run(string[] args)
+		{
+			arguments.Clear();
 
 			if (args.Length > 0 && args[0].Contains("=") == false)
 				args[0] = $"command={args[0]}";
@@ -203,6 +232,22 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 					ValidateRequiredParameters("mssql");
 					Tools.PopText(MsSQL.SchemaAnsi(arguments["mssql"]));
 					break;
+
+				case "mssql-databases":
+					ValidateRequiredParameters("mssql");
+					Tools.PopText(String.Join(Environment.NewLine, MsSQL.Databases(arguments["mssql"])));
+					break;
+
+				case "mssql-backup":
+					ValidateRequiredParameters("filename", "mssql", "name");
+					MsSQL.Backup(arguments["filename"], arguments["mssql"], arguments["name"], null);
+					break;
+
+				case "mssql-restore":
+					ValidateRequiredParameters("filename", "mssql", "name");
+					MsSQL.Restore(arguments["filename"], arguments["mssql"], arguments["name"], null, null, null);
+					break;
+
 
 
 				//

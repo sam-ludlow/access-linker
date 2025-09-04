@@ -129,12 +129,18 @@ namespace access_linker
 				{
 					foreach (string tableName in tableNames)
 					{
-						//if (tableName.EndsWith("_History") == true)
-						//	continue;
-
 						Console.Write(tableName);
 
-						string sourceTableName = tableName; // = type == "acExport" ? tableName : $"dbo.{tableName}";
+						if (tableName == "trace_xe_action_map" || tableName == "trace_xe_event_map")
+						{
+							Console.WriteLine(".(ignore)");
+							continue;
+						}
+
+						string sourceTableName = tableName;
+
+						if (odbcConnectionString.Contains("SQL Server") == true && transferType != AcDataTransferType.acExport)
+							sourceTableName = $"dbo.{sourceTableName}";
 
 						application.DoCmd.TransferDatabase(transferType, "ODBC Database", $"ODBC;{odbcConnectionString}", AcObjectType.acTable, sourceTableName, tableName, false, true);
 
