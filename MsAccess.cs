@@ -131,7 +131,7 @@ namespace access_linker
 					{
 						Console.Write(tableName);
 
-						if (tableName == "trace_xe_action_map" || tableName == "trace_xe_event_map")
+						if (tableName == "trace_xe_action_map" || tableName == "trace_xe_event_map")	// || tableName.EndsWith("_History") == true)
 						{
 							Console.WriteLine(".(ignore)");
 							continue;
