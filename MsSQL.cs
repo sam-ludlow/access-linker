@@ -212,7 +212,7 @@ namespace access_linker
 			{
 				DataTable database_files = ExecuteFill(serverConnection, "SELECT * FROM sys.database_files");
 
-				Tools.PopText(database_files);
+				//Tools.PopText(database_files);
 
                 foreach (DataRow database_file in database_files.Select($"type_desc = '{fileType}'"))
                 {
