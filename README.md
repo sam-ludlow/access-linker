@@ -49,6 +49,9 @@ Start access-linker without any arguments then select sorce file, the target acc
 | mssql-backup | Backup SQL Server to file | `access-linker.exe mssql-backup filename="C:\tmp\target.bak" mssql=my-mssql-server name=source-database` |
 | mssql-restore | Restore SQL Server from file | `access-linker.exe mssql-restore filename="C:\tmp\source.bak" mssql=my-mssql-server name=target-database` |
 
+| mssql-schema-ansi | View MS SQL database schema using INFORMATION_SCHEMA | `access-linker.exe mssql-schema-ansi mssql=my-mssql-server@target-database` |
+| mssql-schema-ansi | View MS SQL database schema using INFORMATION_SCHEMA | `access-linker.exe mssql-schema-ansi mssql=my-mssql-server@target-database` |
+
 ### ODBC
 | Name | Description | Example |
 | ---- | ----------- | ------- |

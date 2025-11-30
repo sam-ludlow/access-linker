@@ -206,10 +206,24 @@ namespace access_linker
 			}
 		}
 
+		public static void ShrinkFile(string connectionString, string fileType, int targetMegabytes)
+		{
+			using (SqlConnection serverConnection = new SqlConnection(connectionString))
+			{
+				DataTable database_files = ExecuteFill(serverConnection, "SELECT * FROM sys.database_files");
 
+				Tools.PopText(database_files);
 
-
-
+                foreach (DataRow database_file in database_files.Select($"type_desc = '{fileType}'"))
+                {
+					string database_file_name = (string)database_file["name"];
+					string commandText = $"DBCC SHRINKFILE ('{database_file_name}', {targetMegabytes})";
+					Console.Write(commandText + " ...");
+					ExecuteNonQuery(serverConnection, commandText);
+					Console.WriteLine(".done");
+				}
+            }
+		}
 
 		//public static void Rename(string connectionString, string databaseSource, string databaseTarget, string directoryData, string directoryLogs)
 		//{

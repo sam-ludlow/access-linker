@@ -248,7 +248,15 @@ $$  __$$ |$$ |      $$ |      $$   ____| \____$$\  \____$$\         $$ |$$ |$$ |
 					MsSQL.Restore(arguments["filename"], arguments["mssql"], arguments["name"], null, null, null);
 					break;
 
+				case "mssql-shrink-ldf":
+					ValidateRequiredParameters("mssql");
+					MsSQL.ShrinkFile(arguments["mssql"], "LOG", 1);
+					break;
 
+				case "mssql-shrink-mdf":
+					ValidateRequiredParameters("mssql");
+					MsSQL.ShrinkFile(arguments["mssql"], "ROWS", 1);
+					break;
 
 				//
 				// OBDC
