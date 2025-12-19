@@ -43,7 +43,7 @@ namespace access_linker
 			}
 
 			DataSet dataSet = new DataSet();
-			ImportXML(document, dataSet, null, parentNameTables);
+			ImportXML(document, dataSet, null, parentNameTables, typeof(int));
 
 			return dataSet;
 		}
@@ -116,7 +116,7 @@ namespace access_linker
 			}
 		}
 
-		private static void ImportXML(XElement element, DataSet dataSet, DataRow parentRow, HashSet<string> parentNameTables)
+		private static void ImportXML(XElement element, DataSet dataSet, DataRow parentRow, HashSet<string> parentNameTables, Type pkType)
 		{
 			string tableName = element.Name.LocalName;
 
@@ -136,7 +136,7 @@ namespace access_linker
 			if (dataSet.Tables.Contains(tableName) == false)
 			{
 				table = new DataTable(tableName);
-				DataColumn pkColumn = table.Columns.Add(tableName + "_id", typeof(long));
+				DataColumn pkColumn = table.Columns.Add(tableName + "_id", pkType);
 				pkColumn.AutoIncrement = true;
 				pkColumn.AutoIncrementSeed = 1;
 
@@ -182,7 +182,7 @@ namespace access_linker
 			foreach (XElement childElement in element.Elements())
 			{
 				if (childElement.HasAttributes == true || childElement.HasElements == true)
-					ImportXML(childElement, dataSet, row, parentNameTables);
+					ImportXML(childElement, dataSet, row, parentNameTables, pkType);
 			}
 		}
 	}

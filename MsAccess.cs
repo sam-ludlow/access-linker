@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.OleDb;
-using System.Data.Odbc;
 using System.Data;
+using System.Data.Odbc;
+using System.Data.OleDb;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
+using System.Linq;
 
 using Microsoft.Office.Interop.Access;  // COM: Microsoft Access 16.0 Object Library
 
@@ -236,6 +236,7 @@ namespace access_linker
 							break;
 
 						case "int":
+						case "Int32":
 							dataType = "LONG";
 							break;
 
@@ -288,60 +289,111 @@ namespace access_linker
 
 		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
 		{
-			using (TempDirectory TempDir = new TempDirectory())
+			string commandText = $"INSERT INTO [{table.TableName}] VALUES ({String.Join(",", table.Columns.Cast<DataColumn>().Select(_ => "?"))})";
+			
+			Console.WriteLine (commandText);
+
+			connection.Open();
+
+			OleDbTransaction transaction = null;
+			try
 			{
-				string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
-				string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
+				transaction = connection.BeginTransaction();
 
-				File.WriteAllLines(iniFilename, new string[] {
-						$"[{Path.GetFileName(csvFilename)}]",
-						"Format=TabDelimited",
-						"CharacterSet=65001",
-						"HDR=YES",
-					});
-
-				using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
+				using (OleDbCommand command = new OleDbCommand(commandText, connection, transaction))
 				{
 					foreach (DataColumn column in table.Columns)
-					{
-						if (column.Ordinal > 0)
-							writer.Write('\t');
+						command.Parameters.Add(new OleDbParameter());
 
-						writer.Write(column.ColumnName);
-					}
-					writer.WriteLine();
+					int count = 0;
 
 					foreach (DataRow row in table.Rows)
 					{
-						foreach (DataColumn column in table.Columns)
-						{
-							if (column.Ordinal > 0)
-								writer.Write('\t');
+						for (int index = 0; index < command.Parameters.Count; ++index)
+							command.Parameters[index].Value = row.IsNull(index) == false ? row[index] : DBNull.Value;
 
-							if (row.IsNull(column) == false)
-							{
-								string value = Convert.ToString(row[column]);
+						command.ExecuteNonQuery();
 
-								value = value.Replace("\"", "\"\"");
-
-								if (column.DataType.Name == "String")
-									writer.Write('\"');
-
-								writer.Write(value);
-
-								if (column.DataType.Name == "String")
-									writer.Write('\"');
-							}
-						}
-						writer.WriteLine();
+						if (count % 4096 == 0)
+							Console.WriteLine($"{count}/{table.Rows.Count}");
+						++count;
 					}
 				}
-				string commandText = $"INSERT INTO [{table.TableName}] SELECT * FROM [Text;CharacterSet=65001;Database={Path.GetDirectoryName(csvFilename)}].[{Path.GetFileName(csvFilename)}]";
+				
+				Console.Write("Commit...");
 
-				Console.WriteLine(commandText);
-
-				Tools.ExecuteNonQuery(connection, commandText);
+				transaction.Commit();
 			}
+			catch
+			{
+				if (transaction != null)
+					transaction.Rollback();
+
+				throw;
+			}
+			finally
+			{
+				connection.Close(); 
+			}
+
+			Console.WriteLine("...done");
+
+
+
+			//using (TempDirectory TempDir = new TempDirectory())
+			//{
+			//	string csvFilename = Path.Combine(TempDir.Path, table.TableName + ".csv");
+			//	string iniFilename = Path.Combine(TempDir.Path, "Schema.ini");
+
+			//	File.WriteAllLines(iniFilename, new string[] {
+			//			$"[{Path.GetFileName(csvFilename)}]",
+			//			"Format=TabDelimited",
+			//			"CharacterSet=65001",
+			//			"HDR=YES",
+			//		});
+
+			//	using (StreamWriter writer = new StreamWriter(csvFilename, false, new UTF8Encoding(false)))
+			//	{
+			//		foreach (DataColumn column in table.Columns)
+			//		{
+			//			if (column.Ordinal > 0)
+			//				writer.Write('\t');
+
+			//			writer.Write(column.ColumnName);
+			//		}
+			//		writer.WriteLine();
+
+			//		foreach (DataRow row in table.Rows)
+			//		{
+			//			foreach (DataColumn column in table.Columns)
+			//			{
+			//				if (column.Ordinal > 0)
+			//					writer.Write('\t');
+
+			//				if (row.IsNull(column) == false)
+			//				{
+			//					string value = Convert.ToString(row[column]);
+
+			//					value = value.Replace("\"", "\"\"");
+
+			//					if (column.DataType.Name == "String")
+			//						writer.Write('\"');
+
+			//					writer.Write(value);
+
+			//					if (column.DataType.Name == "String")
+			//						writer.Write('\"');
+			//				}
+			//			}
+			//			writer.WriteLine();
+			//		}
+			//	}
+			//	string commandText = $"INSERT INTO [{table.TableName}] SELECT * FROM [Text;Database={Path.GetDirectoryName(csvFilename)}].[{Path.GetFileName(csvFilename)}]";
+
+			//	Console.WriteLine(commandText);
+
+			//	Tools.ExecuteNonQuery(connection, commandText);
+			//}
 		}
 
 		public static string EMPTY_accdb_gz_base64 = @"
