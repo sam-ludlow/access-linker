@@ -6,6 +6,7 @@ using System.Data.OleDb;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 
 using Microsoft.Office.Interop.Access;  // COM: Microsoft Access 16.0 Object Library
 
@@ -287,11 +288,79 @@ namespace access_linker
 			return tableNames.ToArray();
 		}
 
+		public static void AccessBulkInsert(OdbcConnection connection, DataTable table)
+		{
+			string commandTextPrefix = $"INSERT INTO [{table.TableName}] ([{String.Join("],[", table.Columns.Cast<DataColumn>().Select(column => column.ColumnName))}]) VALUES ";
+			Console.WriteLine(commandTextPrefix);
+
+			connection.Open();
+
+			OdbcTransaction transaction = null;
+			try
+			{
+				transaction = connection.BeginTransaction();
+
+				using (OdbcCommand command = new OdbcCommand("", connection, transaction))
+				{
+					int count = 0;
+
+					foreach (DataRow row in table.Rows)
+					{
+						StringBuilder commandText = new StringBuilder(commandTextPrefix);
+						commandText.Append("(");
+
+						for (int index = 0; index < table.Columns.Count; ++index)
+						{
+							if (index > 0)
+								commandText.Append(',');
+
+							if (row.IsNull(index) == true)
+							{
+								commandText.Append("NULL");
+								continue;
+							}
+
+							object value = row[index];
+
+							if (table.Columns[index].DataType == typeof(string))
+								commandText.Append("'" + ((string)value).Replace("'", "''") + "'");
+							else
+								commandText.Append(Convert.ToString(value));
+						}
+
+						commandText.Append(");");
+
+						command.CommandText = commandText.ToString();
+						command.ExecuteNonQuery();
+
+						if (count % 4096 == 0)
+							Console.WriteLine($"{count}/{table.Rows.Count}");
+						++count;
+					}
+				}
+
+				Console.Write("Commit...");
+
+				transaction.Commit();
+			}
+			catch
+			{
+				transaction?.Rollback();
+
+				throw;
+			}
+			finally
+			{
+				connection.Close();
+			}
+
+			Console.WriteLine("...done");
+		}
+
 		public static void AccessBulkInsert(OleDbConnection connection, DataTable table)
 		{
-			string commandText = $"INSERT INTO [{table.TableName}] VALUES ({String.Join(",", table.Columns.Cast<DataColumn>().Select(_ => "?"))})";
-			
-			Console.WriteLine (commandText);
+			string commandTextPrefix = $"INSERT INTO [{table.TableName}] ([{String.Join("],[", table.Columns.Cast<DataColumn>().Select(column => column.ColumnName))}]) VALUES ";
+			Console.WriteLine(commandTextPrefix);
 
 			connection.Open();
 
@@ -300,18 +369,37 @@ namespace access_linker
 			{
 				transaction = connection.BeginTransaction();
 
-				using (OleDbCommand command = new OleDbCommand(commandText, connection, transaction))
+				using (OleDbCommand command = new OleDbCommand("", connection, transaction))
 				{
-					foreach (DataColumn column in table.Columns)
-						command.Parameters.Add(new OleDbParameter());
-
 					int count = 0;
 
 					foreach (DataRow row in table.Rows)
 					{
-						for (int index = 0; index < command.Parameters.Count; ++index)
-							command.Parameters[index].Value = row.IsNull(index) == false ? row[index] : DBNull.Value;
+						StringBuilder commandText = new StringBuilder(commandTextPrefix);
+						commandText.Append("(");
 
+						for (int index = 0; index < table.Columns.Count; ++index)
+						{
+							if (index > 0)
+								commandText.Append(',');
+
+							if (row.IsNull(index) == true)
+							{
+								commandText.Append("NULL");
+								continue;
+							}
+
+							object value = row[index];
+
+							if (table.Columns[index].DataType == typeof(string))
+								commandText.Append("'" + ((string)value).Replace("'", "''") + "'");
+							else
+								commandText.Append(Convert.ToString(value));
+						}
+
+						commandText.Append(");");
+
+						command.CommandText = commandText.ToString();
 						command.ExecuteNonQuery();
 
 						if (count % 4096 == 0)
@@ -319,24 +407,79 @@ namespace access_linker
 						++count;
 					}
 				}
-				
+
 				Console.Write("Commit...");
 
 				transaction.Commit();
 			}
 			catch
 			{
-				if (transaction != null)
-					transaction.Rollback();
+				transaction?.Rollback();
 
 				throw;
 			}
 			finally
 			{
-				connection.Close(); 
+				connection.Close();
 			}
 
 			Console.WriteLine("...done");
+
+
+
+
+
+
+			//string commandText = $"INSERT INTO [{table.TableName}] VALUES ({String.Join(",", table.Columns.Cast<DataColumn>().Select(_ => "?"))})";
+
+			//Console.WriteLine(commandText);
+
+			//connection.Open();
+
+			//OleDbTransaction transaction = null;
+			//try
+			//{
+			//	transaction = connection.BeginTransaction();
+
+			//	using (OleDbCommand command = new OleDbCommand(commandText, connection, transaction))
+			//	{
+			//		foreach (DataColumn column in table.Columns)
+			//			command.Parameters.Add(new OleDbParameter());
+
+			//		int count = 0;
+
+			//		foreach (DataRow row in table.Rows)
+			//		{
+			//			for (int index = 0; index < command.Parameters.Count; ++index)
+			//				command.Parameters[index].Value = row.IsNull(index) == false ? row[index] : DBNull.Value;
+
+			//			command.ExecuteNonQuery();
+
+			//			if (count % 4096 == 0)
+			//				Console.WriteLine($"{count}/{table.Rows.Count}");
+			//			++count;
+			//		}
+			//	}
+
+			//	Console.Write("Commit...");
+
+			//	transaction.Commit();
+			//}
+			//catch
+			//{
+			//	transaction?.Rollback();
+
+			//	throw;
+			//}
+			//finally
+			//{
+			//	connection.Close(); 
+			//}
+
+			//Console.WriteLine("...done");
+
+
+
 
 
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
+using System.Data.Odbc;
 using System.Xml.Linq;
 
 namespace access_linker
@@ -10,20 +11,43 @@ namespace access_linker
 	{
 		public static void InsertAccess(string xmlFilename, string targetFilename)
 		{
+			DateTime startTime = DateTime.Now;
+
+			DataSet dataSet = ImportXML(xmlFilename);
+			DataSet schema = SchemaDataSet(dataSet);
+
 			using (var targetConnection = new OleDbConnection(Tools.MakeConnectionStringOLEDB(targetFilename)))
 			{
-				DataSet dataSet = ImportXML(xmlFilename);
-				DataSet schema = SchemaDataSet(dataSet);
+				MsAccess.CreateAccessTables(schema, targetConnection);
+			}
 
-				foreach (string tableName in MsAccess.CreateAccessTables(schema, targetConnection))
+			using (var targetConnection = new OdbcConnection("Driver={Microsoft Access Driver (*.mdb, *.accdb)};Exclusive=1;" + $"Dbq={targetFilename};"))
+			{
+				foreach (DataTable table in dataSet.Tables)
 				{
-					DataTable table = dataSet.Tables[tableName];
-
 					Console.WriteLine($"{table.TableName} {table.Rows.Count}");
 
 					MsAccess.AccessBulkInsert(targetConnection, table);
+
+					Console.WriteLine($"{table.TableName} took minutes {(DateTime.Now - startTime).TotalMinutes}");
 				}
 			}
+
+			//using (var targetConnection = new OleDbConnection(Tools.MakeConnectionStringOLEDB(targetFilename)))
+			//{
+			//	foreach (string tableName in MsAccess.CreateAccessTables(schema, targetConnection))
+			//	{
+			//		DataTable table = dataSet.Tables[tableName];
+
+			//		Console.WriteLine($"{table.TableName} {table.Rows.Count}");
+
+			//		MsAccess.AccessBulkInsert(targetConnection, table);
+
+			//		Console.WriteLine($"{table.TableName} took minutes {(DateTime.Now - startTime).TotalMinutes}");
+			//	}
+			//}
+
+			Console.WriteLine($"Finished took minutes {(DateTime.Now - startTime).TotalMinutes}");
 		}
 		public static DataSet ImportXML(string filename)
 		{
